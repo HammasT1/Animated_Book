@@ -48,9 +48,15 @@ A modern Flutter application showcasing an elegant <b>3D animated book</b> with 
 
 <div align="center">
 
-<img src="https://github.com/HammasT1/Animated_Book/blob/main/assets/gif/project_demo.gif?raw=true" width="750"/>
+<img src="https://github.com/HammasT1/Animated_Book/blob/main/assets/images/AnimatedBook-GIF.gif?raw=true"
+     alt="Animated Book Demo"
+     width="600"/>
 
 </div>
+
+<p align="center">
+Experience a smooth and immersive 3D book animation built with Flutter, featuring elegant page transitions, realistic motion effects, and a modern UI.
+</p>
 
 ---
 
