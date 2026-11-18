@@ -1,0 +1,131 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="380" viewBox="0 0 1200 380" role="img" aria-label="Animated Book — a 3D page-flipping reader built with Flutter">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1A1613"/>
+      <stop offset="0.55" stop-color="#2C2420"/>
+      <stop offset="1" stop-color="#3E2A1C"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.27" cy="0.5" r="0.35">
+      <stop offset="0" stop-color="#CBB69B" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#CBB69B" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="cover" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8B5A2B"/>
+      <stop offset="1" stop-color="#5D4037"/>
+    </linearGradient>
+    <linearGradient id="page" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#E8DDD0"/>
+      <stop offset="0.12" stop-color="#FAF8F3"/>
+      <stop offset="1" stop-color="#F5EFEB"/>
+    </linearGradient>
+    <linearGradient id="pageL" x1="1" y1="0" x2="0" y2="0">
+      <stop offset="0" stop-color="#E8DDD0"/>
+      <stop offset="0.12" stop-color="#FAF8F3"/>
+      <stop offset="1" stop-color="#F5EFEB"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#CBB69B"/>
+      <stop offset="0.5" stop-color="#FAF8F3"/>
+      <stop offset="1" stop-color="#CBB69B"/>
+    </linearGradient>
+    <g id="lines" stroke="#8B7355" stroke-opacity=".35" stroke-width="2" stroke-linecap="round">
+      <text x="344" y="150" font-family="Georgia, serif" font-size="44" font-weight="700" fill="#6B4423" stroke="none">A</text>
+      <line x1="382" y1="128" x2="480" y2="128"/><line x1="382" y1="150" x2="474" y2="150"/>
+      <line x1="346" y1="172" x2="480" y2="172"/><line x1="346" y1="194" x2="470" y2="194"/>
+      <line x1="346" y1="216" x2="480" y2="216"/><line x1="346" y1="238" x2="460" y2="238"/>
+      <line x1="346" y1="260" x2="430" y2="260"/>
+    </g>
+    <style>
+      .flip { transform-box: view-box; transform-origin: 320px 200px; animation: flip 3.6s cubic-bezier(.45,.05,.35,1) infinite; }
+      .ink { animation: ink 3.6s linear infinite; }
+      .flip2, .flip2 .ink { animation-delay: 1.2s; }
+      .flip3 .ink { animation-delay: 2.4s; }
+      @keyframes ink { 0%,47% { opacity: 1; } 48%,100% { opacity: 0; } }
+      .flip3 { animation-delay: 2.4s; }
+      @keyframes flip {
+        0%   { transform: scaleX(1);  opacity: 1; }
+        45%  { transform: scaleX(0);  opacity: 1; }
+        50%  { transform: scaleX(0);  opacity: 1; }
+        95%  { transform: scaleX(-1); opacity: 1; }
+        100% { transform: scaleX(-1); opacity: 0; }
+      }
+      .float { animation: float 6s ease-in-out infinite; }
+      @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+      .spark { animation: spark 4s ease-in-out infinite; }
+      @keyframes spark { 0%,100% { opacity: 0; } 50% { opacity: .9; } }
+      .title { font-family: Georgia, 'Times New Roman', serif; font-weight: 700; fill: #F5EFEB; }
+      .rise { animation: rise 1.2s ease-out both; }
+      .rise2 { animation-delay: .35s; }
+      .rise3 { animation-delay: .7s; }
+      @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+      .underline { stroke-dasharray: 420; stroke-dashoffset: 420; animation: draw 1.6s .9s ease-out forwards; }
+      @keyframes draw { to { stroke-dashoffset: 0; } }
+      .line { stroke: #8B7355; stroke-opacity: .35; stroke-width: 2; stroke-linecap: round; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="380" rx="22" fill="url(#bg)"/>
+  <rect width="1200" height="380" rx="22" fill="url(#glow)"/>
+
+  <!-- sparkles -->
+  <g fill="#CBB69B">
+    <circle class="spark" cx="140" cy="70"  r="2.5"/>
+    <circle class="spark" cx="520" cy="60"  r="2"   style="animation-delay:1s"/>
+    <circle class="spark" cx="110" cy="300" r="2"   style="animation-delay:2s"/>
+    <circle class="spark" cx="560" cy="320" r="2.5" style="animation-delay:3s"/>
+    <circle class="spark" cx="1120" cy="80" r="2"   style="animation-delay:1.5s"/>
+    <circle class="spark" cx="1080" cy="320" r="2.5" style="animation-delay:.5s"/>
+    <circle class="spark" cx="690" cy="40"  r="1.8" style="animation-delay:2.6s"/>
+  </g>
+
+  <!-- book -->
+  <g class="float">
+    <ellipse cx="320" cy="318" rx="190" ry="14" fill="#000" opacity=".35"/>
+    <!-- covers -->
+    <rect x="128" y="82" width="384" height="230" rx="10" fill="url(#cover)"/>
+    <!-- left page stack -->
+    <path d="M140 92 H316 V300 H140 Z" fill="url(#pageL)"/>
+    <!-- right page stack -->
+    <path d="M324 92 H500 V300 H324 Z" fill="url(#page)"/>
+    <!-- spine -->
+    <rect x="315" y="88" width="10" height="216" fill="#6B4423"/>
+    <!-- text lines left -->
+    <g class="line">
+      <line x1="162" y1="128" x2="296" y2="128"/><line x1="162" y1="150" x2="290" y2="150"/>
+      <line x1="162" y1="172" x2="296" y2="172"/><line x1="162" y1="194" x2="270" y2="194"/>
+      <line x1="162" y1="216" x2="296" y2="216"/><line x1="162" y1="238" x2="284" y2="238"/>
+      <line x1="162" y1="260" x2="250" y2="260"/>
+    </g>
+    <!-- drop cap + text lines right -->
+    <text x="344" y="150" font-family="Georgia, serif" font-size="44" font-weight="700" fill="#6B4423">A</text>
+    <g class="line">
+      <line x1="382" y1="128" x2="480" y2="128"/><line x1="382" y1="150" x2="474" y2="150"/>
+      <line x1="346" y1="172" x2="480" y2="172"/><line x1="346" y1="194" x2="470" y2="194"/>
+      <line x1="346" y1="216" x2="480" y2="216"/><line x1="346" y1="238" x2="460" y2="238"/>
+      <line x1="346" y1="260" x2="430" y2="260"/>
+    </g>
+    <!-- flipping pages -->
+    <g class="flip"><path d="M324 92 H500 V300 H324 Z" fill="#FAF8F3" stroke="#E8DDD0"/><use class="ink" href="#lines"/></g>
+    <g class="flip flip2"><path d="M324 92 H500 V300 H324 Z" fill="#F5EFEB" stroke="#E8DDD0"/><use class="ink" href="#lines"/></g>
+    <g class="flip flip3"><path d="M324 92 H500 V300 H324 Z" fill="#FAF8F3" stroke="#E8DDD0"/><use class="ink" href="#lines"/></g>
+    <!-- bookmark ribbon -->
+    <path d="M470 82 V128 L480 118 L490 128 V82 Z" fill="#B23A3A"/>
+  </g>
+
+  <!-- copy -->
+  <g class="rise">
+    <text x="620" y="160" class="title" font-size="70">Animated Book</text>
+  </g>
+  <path class="underline" d="M624 186 H1044" stroke="url(#shine)" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <g class="rise rise2">
+    <text x="624" y="232" font-family="Georgia, serif" font-style="italic" font-size="26" fill="#CBB69B">A 3D page‑flipping reader, crafted in Flutter</text>
+  </g>
+  <g class="rise rise3" font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" letter-spacing="1.5">
+    <rect x="624" y="266" width="112" height="34" rx="17" fill="#6B4423"/>
+    <text x="680" y="288" text-anchor="middle" fill="#FAF8F3">FLUTTER</text>
+    <rect x="748" y="266" width="128" height="34" rx="17" fill="none" stroke="#8B7355" stroke-width="1.5"/>
+    <text x="812" y="288" text-anchor="middle" fill="#CBB69B">MATERIAL 3</text>
+    <rect x="888" y="266" width="150" height="34" rx="17" fill="none" stroke="#8B7355" stroke-width="1.5"/>
+    <text x="963" y="288" text-anchor="middle" fill="#CBB69B">60 FPS MOTION</text>
+  </g>
+</svg>
