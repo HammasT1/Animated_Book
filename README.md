@@ -13,6 +13,7 @@
 <img src="https://img.shields.io/badge/Material-3-CBB69B?style=for-the-badge&logo=materialdesign&logoColor=FAF8F3&labelColor=2C2420"/>
 <img src="https://img.shields.io/badge/Android%20%C2%B7%20Web%20%C2%B7%20Windows-5D4037?style=for-the-badge&labelColor=2C2420"/>
 <img src="https://img.shields.io/github/stars/HammasT1/Animated_Book?style=for-the-badge&color=FFC107&labelColor=2C2420&logo=github"/>
+<a href="https://github.com/HammasT1/Animated_Book/actions/workflows/build-apk.yml"><img src="https://img.shields.io/github/actions/workflow/status/HammasT1/Animated_Book/build-apk.yml?style=for-the-badge&label=APK%20Build&logo=githubactions&logoColor=FAF8F3&color=6B4423&labelColor=2C2420"/></a>
 
 <br/><br/>
 
@@ -165,6 +166,15 @@ flowchart LR
 </details>
 
 <img src="assets/readme/divider.svg" width="100%"/>
+
+## 📲 Download
+
+Ready-to-install APKs are built automatically by GitHub Actions:
+
+- **Stable:** grab the latest APK from [**Releases**](https://github.com/HammasT1/Animated_Book/releases/latest)
+- **Latest build:** open the most recent [**Build APK** run](https://github.com/HammasT1/Animated_Book/actions/workflows/build-apk.yml) and download the `AnimatedBook-APKs` artifact
+
+> Not sure which file to pick? Use **`arm64-v8a`** for most modern phones, or **`universal`** if you're unsure.
 
 ## 🚀 Getting Started
 
