@@ -75,6 +75,7 @@ The whole UI is dressed in a warm **leather-and-parchment palette** with an eleg
 - **Drag-to-flip** with a live preview that tracks your swipe
 - **Direction-aware hinge**: flips forward *and* backward
 - **Hero cover transition** from shelf to reader
+- **Velocity-aware flicks**: a quick swipe turns the page and continues from where your finger let go
 - **Staged reveal**: reader chrome rises and fades in once the cover lands
 
     </td>
@@ -82,10 +83,12 @@ The whole UI is dressed in a warm **leather-and-parchment palette** with an eleg
 
 ### 📚 Reading
 - **Swipeable library** of book covers via `PageView`
-- **Per-page bookmarks** with instant toggle
+- **Per-page bookmarks** with instant toggle, saved across restarts
+- **Continue reading**: progress on every cover, reopens where you left off
 - **Illuminated drop caps** on every paragraph
 - **Page counter** (`Page x of y`) in the nav tray
-- **Custom serif typography** for a printed-book feel
+- **Reader settings**: text size, line spacing and serif/sans typeface
+- **Keyboard & mouse**: ←/→, PgUp/PgDn, Space, `B` to bookmark, `Esc` to close, scroll wheel at page edges
 
     </td>
   </tr>
@@ -94,7 +97,7 @@ The whole UI is dressed in a warm **leather-and-parchment palette** with an eleg
 
 ### 🎨 Design
 - **Material 3** themes seeded from leather brown
-- **Light ⇄ Dark** toggle: parchment by day, espresso by night
+- **Light · Sepia · Dark** paper styles, remembered between sessions
 - Textured backgrounds, layered shadows and gradients
 
     </td>
