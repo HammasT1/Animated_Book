@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="330" viewBox="0 0 1000 330" role="img" aria-label="A quick 40 px flick turns the page; a slow 40 px drag snaps back">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1A1613"/>
+      <stop offset="0.6" stop-color="#2C2420"/>
+      <stop offset="1" stop-color="#3E2A1C"/>
+    </linearGradient>
+    <linearGradient id="page" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#E8DDD0"/>
+      <stop offset="0.12" stop-color="#FAF8F3"/>
+      <stop offset="1" stop-color="#F5EFEB"/>
+    </linearGradient>
+    <linearGradient id="amber" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#CBB69B"/>
+      <stop offset="1" stop-color="#FFC107"/>
+    </linearGradient>
+    <g id="lines" stroke="#8B7355" stroke-opacity=".4" stroke-width="2" stroke-linecap="round">
+      <line x1="16" y1="30" x2="130" y2="30"/><line x1="16" y1="46" x2="124" y2="46"/>
+      <line x1="16" y1="62" x2="130" y2="62"/><line x1="16" y1="78" x2="100" y2="78"/>
+    </g>
+    <style>
+      .h { font-family: Georgia, serif; font-size: 22px; font-weight: 700; fill: #FAF8F3; }
+      .sub { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; fill: #CBB69B; }
+      .tiny { font-family: Georgia, serif; font-size: 11px; letter-spacing: 2px; fill: #8B7355; }
+      .num { font-family: Georgia, serif; font-size: 34px; font-weight: 700; fill: #6B4423; opacity: .5; }
+
+      .flipA { transform-box: fill-box; transform-origin: left center; animation: flipA 4s cubic-bezier(.3,0,.2,1) infinite; }
+      @keyframes flipA {
+        0%,12% { transform: scaleX(1) skewY(0); opacity: 1; }
+        34% { transform: scaleX(0) skewY(-6deg); opacity: 1; }
+        35%,86% { transform: scaleX(0); opacity: 0; }
+        87% { transform: scaleX(1); opacity: 0; }
+        96%,100% { transform: scaleX(1); opacity: 1; }
+      }
+      .fingerA { animation: fingerA 4s ease-in infinite; }
+      @keyframes fingerA {
+        0% { transform: translateX(0); opacity: 0; }
+        3% { transform: translateX(0); opacity: .9; }
+        12% { transform: translateX(-40px); opacity: .9; }
+        18%,100% { transform: translateX(-40px); opacity: 0; }
+      }
+      .velA { transform-box: fill-box; transform-origin: left center; animation: velA 4s ease-out infinite; }
+      @keyframes velA { 0%,3% { transform: scaleX(0); } 12%,60% { transform: scaleX(.83); } 75%,100% { transform: scaleX(0); } }
+      .okA { animation: okA 4s ease-out infinite; }
+      @keyframes okA { 0%,22% { opacity: 0; transform: translateY(6px); } 30%,80% { opacity: 1; transform: none; } 90%,100% { opacity: 0; } }
+
+      .flipB { transform-box: fill-box; transform-origin: left center; animation: flipB 4s ease-in-out infinite; }
+      @keyframes flipB { 0%,4% { transform: scaleX(1); } 48% { transform: scaleX(.8) skewY(-2deg); } 62%,100% { transform: scaleX(1); } }
+      .fingerB { animation: fingerB 4s linear infinite; }
+      @keyframes fingerB {
+        0% { transform: translateX(0); opacity: 0; }
+        4% { transform: translateX(0); opacity: .9; }
+        48% { transform: translateX(-40px); opacity: .9; }
+        54%,100% { transform: translateX(-40px); opacity: 0; }
+      }
+      .velB { transform-box: fill-box; transform-origin: left center; animation: velB 4s ease-out infinite; }
+      @keyframes velB { 0%,4% { transform: scaleX(0); } 12%,48% { transform: scaleX(.05); } 60%,100% { transform: scaleX(0); } }
+      .okB { animation: okB 4s ease-out infinite; }
+      @keyframes okB { 0%,56% { opacity: 0; transform: translateY(6px); } 64%,90% { opacity: 1; transform: none; } 98%,100% { opacity: 0; } }
+    </style>
+  </defs>
+
+  <rect width="1000" height="330" rx="24" fill="url(#bg)"/>
+
+  <!-- Lane A: quick flick -->
+  <text x="48" y="92" class="h">Quick flick</text>
+  <text x="48" y="114" class="sub">40 px · 1500 px/s</text>
+
+  <g transform="translate(290 40)">
+    <rect x="0" y="0" width="150" height="110" rx="8" fill="#F5EFEB"/>
+    <text x="118" y="96" class="num">2</text>
+    <g class="flipA">
+      <rect x="0" y="0" width="150" height="110" rx="8" fill="url(#page)" stroke="#CBB69B"/>
+      <use href="#lines"/>
+    </g>
+    <circle class="fingerA" cx="128" cy="62" r="13" fill="#FFC107" stroke="#FAF8F3" stroke-width="2"/>
+  </g>
+
+  <text x="510" y="78" class="tiny">VELOCITY</text>
+  <rect x="510" y="88" width="250" height="10" rx="5" fill="#3A2E26"/>
+  <rect class="velA" x="510" y="88" width="250" height="10" rx="5" fill="url(#amber)"/>
+  <line x1="593" y1="82" x2="593" y2="104" stroke="#FAF8F3" stroke-opacity=".6" stroke-dasharray="3 3"/>
+  <text x="593" y="122" text-anchor="middle" class="sub">600 px/s</text>
+
+  <g class="okA">
+    <rect x="800" y="72" width="150" height="40" rx="20" fill="#6B4423" stroke="#FFC107"/>
+    <text x="875" y="98" text-anchor="middle" font-family="Georgia, serif" font-size="16" font-weight="700" fill="#FAF8F3">✓ Page turns</text>
+  </g>
+
+  <line x1="48" y1="165" x2="952" y2="165" stroke="#4A3B30" stroke-dasharray="4 6"/>
+
+  <!-- Lane B: slow drag -->
+  <text x="48" y="242" class="h">Slow drag</text>
+  <text x="48" y="264" class="sub">40 px · 60 px/s</text>
+
+  <g transform="translate(290 190)">
+    <rect x="0" y="0" width="150" height="110" rx="8" fill="#F5EFEB"/>
+    <text x="118" y="96" class="num">2</text>
+    <g class="flipB">
+      <rect x="0" y="0" width="150" height="110" rx="8" fill="url(#page)" stroke="#CBB69B"/>
+      <use href="#lines"/>
+    </g>
+    <circle class="fingerB" cx="128" cy="62" r="13" fill="#CBB69B" stroke="#FAF8F3" stroke-width="2"/>
+  </g>
+
+  <text x="510" y="228" class="tiny">VELOCITY</text>
+  <rect x="510" y="238" width="250" height="10" rx="5" fill="#3A2E26"/>
+  <rect class="velB" x="510" y="238" width="250" height="10" rx="5" fill="url(#amber)"/>
+  <line x1="593" y1="232" x2="593" y2="254" stroke="#FAF8F3" stroke-opacity=".6" stroke-dasharray="3 3"/>
+  <text x="593" y="272" text-anchor="middle" class="sub">600 px/s</text>
+
+  <g class="okB">
+    <rect x="800" y="222" width="150" height="40" rx="20" fill="#3A2E26" stroke="#8B7355"/>
+    <text x="875" y="248" text-anchor="middle" font-family="Georgia, serif" font-size="16" font-weight="700" fill="#CBB69B">↺ Snaps back</text>
+  </g>
+</svg>

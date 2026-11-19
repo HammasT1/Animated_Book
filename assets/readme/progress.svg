@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="330" viewBox="0 0 1000 330" role="img" aria-label="Three covers showing reading progress: not started, page 2 of 3, and finished">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1A1613"/>
+      <stop offset="0.6" stop-color="#2C2420"/>
+      <stop offset="1" stop-color="#3E2A1C"/>
+    </linearGradient>
+    <linearGradient id="c1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4E6E81"/><stop offset="1" stop-color="#2C3E50"/></linearGradient>
+    <linearGradient id="c2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8B5A2B"/><stop offset="1" stop-color="#5D4037"/></linearGradient>
+    <linearGradient id="c3" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6B8E5A"/><stop offset="1" stop-color="#3E5B35"/></linearGradient>
+    <clipPath id="k1"><rect x="0" y="0" width="150" height="200" rx="12"/></clipPath>
+    <style>
+      .t { font-family: Georgia, serif; font-size: 17px; font-weight: 700; fill: #FAF8F3; }
+      .a { font-family: Georgia, serif; font-size: 11px; letter-spacing: 1.5px; fill: #FAF8F3; opacity: .7; }
+      .chip { font-family: Georgia, serif; font-size: 14px; fill: #FAF8F3; }
+      .cover { animation: bob 6s ease-in-out infinite; }
+      @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+      .fill { transform-box: fill-box; transform-origin: left center; animation: fill 6s cubic-bezier(.3,0,.2,1) infinite; }
+      @keyframes fill { 0%,8% { transform: scaleX(0); } 40%,88% { transform: scaleX(1); } 96%,100% { transform: scaleX(0); } }
+      .pulse { transform-box: fill-box; transform-origin: center; animation: pulse 2.4s ease-in-out infinite; }
+      @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+      .shine { animation: shine 6s ease-in-out infinite; }
+      @keyframes shine { 0%,30% { transform: translateX(-120px); } 60%,100% { transform: translateX(260px); } }
+    </style>
+  </defs>
+
+  <rect width="1000" height="330" rx="24" fill="url(#bg)"/>
+
+  <!-- Book 1: not started -->
+  <g transform="translate(108 28)">
+    <g class="cover" style="animation-delay:0s">
+      <rect x="4" y="8" width="150" height="200" rx="12" fill="#000" opacity=".35"/>
+      <g clip-path="url(#k1)">
+        <rect width="150" height="200" fill="url(#c1)"/>
+        <rect x="10" y="10" width="130" height="180" rx="6" fill="none" stroke="#FAF8F3" stroke-opacity=".3"/>
+        <text x="75" y="84" text-anchor="middle" class="t">Kafka on</text>
+        <text x="75" y="106" text-anchor="middle" class="t">the Shore</text>
+        <text x="75" y="166" text-anchor="middle" class="a">MURAKAMI</text>
+      </g>
+    </g>
+    <g class="pulse">
+      <rect x="-15" y="236" width="180" height="40" rx="20" fill="#3A2E26" stroke="#8B7355"/>
+      <text x="75" y="261" text-anchor="middle" class="chip">▶ Start reading</text>
+    </g>
+  </g>
+
+  <!-- Book 2: in progress -->
+  <g transform="translate(425 28)">
+    <g class="cover" style="animation-delay:-2s">
+      <rect x="4" y="8" width="150" height="200" rx="12" fill="#000" opacity=".35"/>
+      <g clip-path="url(#k1)">
+        <rect width="150" height="200" fill="url(#c2)"/>
+        <rect class="shine" x="0" y="0" width="40" height="200" fill="#FAF8F3" opacity=".08"/>
+        <rect x="10" y="10" width="130" height="180" rx="6" fill="none" stroke="#FAF8F3" stroke-opacity=".3"/>
+        <text x="75" y="74" text-anchor="middle" class="t">The Picture</text>
+        <text x="75" y="96" text-anchor="middle" class="t">of Dorian</text>
+        <text x="75" y="118" text-anchor="middle" class="t">Gray</text>
+        <text x="75" y="166" text-anchor="middle" class="a">WILDE</text>
+        <rect x="0" y="195" width="150" height="5" fill="#000" opacity=".35"/>
+        <rect class="fill" x="0" y="195" width="100" height="5" fill="#FFC107"/>
+      </g>
+    </g>
+    <g class="pulse" style="animation-delay:-.8s">
+      <rect x="-40" y="236" width="230" height="40" rx="20" fill="#6B4423" stroke="#FFC107"/>
+      <text x="75" y="261" text-anchor="middle" class="chip">▶ Continue · Page 2 of 3</text>
+    </g>
+  </g>
+
+  <!-- Book 3: finished -->
+  <g transform="translate(742 28)">
+    <g class="cover" style="animation-delay:-4s">
+      <rect x="4" y="8" width="150" height="200" rx="12" fill="#000" opacity=".35"/>
+      <g clip-path="url(#k1)">
+        <rect width="150" height="200" fill="url(#c3)"/>
+        <rect x="10" y="10" width="130" height="180" rx="6" fill="none" stroke="#FAF8F3" stroke-opacity=".3"/>
+        <text x="75" y="84" text-anchor="middle" class="t">The Secret</text>
+        <text x="75" y="106" text-anchor="middle" class="t">Garden</text>
+        <text x="75" y="166" text-anchor="middle" class="a">BURNETT</text>
+        <rect x="0" y="195" width="150" height="5" fill="#000" opacity=".35"/>
+        <rect class="fill" x="0" y="195" width="150" height="5" fill="#FFC107" style="animation-delay:.3s"/>
+      </g>
+    </g>
+    <g class="pulse" style="animation-delay:-1.6s">
+      <rect x="-30" y="236" width="210" height="40" rx="20" fill="#3A2E26" stroke="#CBB69B"/>
+      <text x="75" y="261" text-anchor="middle" class="chip">✓ Finished · Read again</text>
+    </g>
+  </g>
+</svg>
