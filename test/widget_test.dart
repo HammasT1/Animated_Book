@@ -69,10 +69,7 @@ void main() {
       await tester.pumpWidget(AnimatedBookApp(state: state));
       await _openFirstBook(tester);
 
-      expect(
-        find.text('Page 2 of ${firstBook.pages.length}'),
-        findsOneWidget,
-      );
+      expect(find.text('Page 2 of ${firstBook.pages.length}'), findsOneWidget);
     });
 
     testWidgets('arrow keys turn pages', (tester) async {
@@ -127,6 +124,66 @@ void main() {
 
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getStringList('bookmarks.${firstBook.id}'), ['0']);
+    });
+  });
+
+  group('Bookmarks list', () {
+    testWidgets('shows an empty state when nothing is bookmarked', (
+      tester,
+    ) async {
+      await tester.pumpWidget(AnimatedBookApp(state: await _freshState()));
+      await _openFirstBook(tester);
+
+      await tester.tap(find.byTooltip('Bookmarks (Shift+B)'));
+      await tester.pumpAndSettle();
+      expect(find.text('No bookmarks yet'), findsOneWidget);
+    });
+
+    testWidgets('tapping a bookmark jumps to its page', (tester) async {
+      final last = firstBook.pages.length - 1;
+      final state = await _freshState({
+        'bookmarks.${firstBook.id}': ['$last'],
+      });
+      await tester.pumpWidget(AnimatedBookApp(state: state));
+      await _openFirstBook(tester);
+      expect(find.textContaining('Page 1 of'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Bookmarks (Shift+B)'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Page ${last + 1}'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('No bookmarks yet'), findsNothing);
+      expect(
+        find.text('Page ${last + 1} of ${firstBook.pages.length}'),
+        findsOneWidget,
+      );
+      expect(state.lastPage(firstBook.id), last);
+    });
+
+    testWidgets('Shift+B opens the list and bookmarks can be removed', (
+      tester,
+    ) async {
+      final state = await _freshState({
+        'bookmarks.${firstBook.id}': ['0', '1'],
+      });
+      await tester.pumpWidget(AnimatedBookApp(state: state));
+      await _openFirstBook(tester);
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyB);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Page 1 · You are here'), findsOneWidget);
+      expect(find.text('Page 2'), findsOneWidget);
+      // Shift+B must not also toggle the current page's bookmark.
+      expect(state.isBookmarked(firstBook.id, 0), isTrue);
+
+      await tester.tap(find.byTooltip('Remove bookmark').last);
+      await tester.pumpAndSettle();
+      expect(find.text('Page 2'), findsNothing);
+      expect(state.bookmarksFor(firstBook.id), {0});
     });
   });
 

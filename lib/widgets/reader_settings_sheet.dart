@@ -58,7 +58,10 @@ class _ReaderSettingsSheet extends StatelessWidget {
                 for (final f in ReaderFont.values)
                   ButtonSegment(
                     value: f,
-                    label: Text(f.label, style: TextStyle(fontFamily: f.family)),
+                    label: Text(
+                      f.label,
+                      style: TextStyle(fontFamily: f.family),
+                    ),
                   ),
               ],
               selected: {state.font},

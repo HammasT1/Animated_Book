@@ -362,7 +362,10 @@ class _ProgressSummary extends StatelessWidget {
         const SizedBox(height: 8),
         FilledButton.tonalIcon(
           onPressed: onContinue,
-          icon: Icon(finished ? Icons.check_circle : Icons.play_arrow, size: 18),
+          icon: Icon(
+            finished ? Icons.check_circle : Icons.play_arrow,
+            size: 18,
+          ),
           label: Text(
             finished
                 ? 'Finished · Read again'

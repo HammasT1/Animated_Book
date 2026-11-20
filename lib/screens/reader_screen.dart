@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import '../models/book.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
+import '../widgets/bookmarks_sheet.dart';
 import '../widgets/page_flip.dart';
 import '../widgets/reader_settings_sheet.dart';
 import '../widgets/theme_toggle_button.dart';
@@ -53,6 +54,10 @@ class _BookReaderScreenState extends State<BookReaderScreen>
   double _dragOffset = 0;
   bool _isDragging = false;
   bool _isFlippingForward = true;
+
+  /// During a jump to a non-adjacent page (from the bookmarks list), the
+  /// page revealed under the turning page; null for ordinary turns.
+  int? _jumpTarget;
   DateTime _wheelLockedUntil = DateTime.fromMillisecondsSinceEpoch(0);
 
   List<String> get _pages => widget.book.pages;
@@ -73,7 +78,10 @@ class _BookReaderScreenState extends State<BookReaderScreen>
       if (mounted) _saveProgress();
     });
 
-    _flipController = AnimationController(vsync: this, duration: _kFlipDuration);
+    _flipController = AnimationController(
+      vsync: this,
+      duration: _kFlipDuration,
+    );
 
     _revealController = AnimationController(
       duration: const Duration(milliseconds: 600),
@@ -87,8 +95,8 @@ class _BookReaderScreenState extends State<BookReaderScreen>
       parent: _revealController,
       curve: const Interval(0.3, 1.0, curve: Curves.easeOut),
     );
-    _revealSlide =
-        Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero).animate(
+    _revealSlide = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
+        .animate(
           CurvedAnimation(
             parent: _revealController,
             curve: const Interval(0.3, 1.0, curve: Curves.easeOutCubic),
@@ -108,8 +116,9 @@ class _BookReaderScreenState extends State<BookReaderScreen>
     super.dispose();
   }
 
-  void _saveProgress() =>
-      AppStateScope.read(context).setLastPage(widget.book.id, _currentPageIndex);
+  void _saveProgress() => AppStateScope.read(
+    context,
+  ).setLastPage(widget.book.id, _currentPageIndex);
 
   // ---------------------------------------------------------------------------
   // Page turning
@@ -117,15 +126,23 @@ class _BookReaderScreenState extends State<BookReaderScreen>
 
   /// Animates the current page away and advances. If the controller already
   /// holds partial progress (from a drag), the turn continues from there.
+  ///
+  /// [to] lands on any page in the direction of travel in a single turn
+  /// (used by the bookmarks list); by default the turn moves one page.
   Future<void> _turnPage({
     required bool forward,
+    int? to,
     Duration? duration,
     Curve curve = Curves.easeInOutQuad,
   }) async {
     if (_flipController.isAnimating || _isDragging) return;
     if (forward ? !_hasNext : !_hasPrev) return;
 
-    setState(() => _isFlippingForward = forward);
+    final target = to ?? _currentPageIndex + (forward ? 1 : -1);
+    setState(() {
+      _isFlippingForward = forward;
+      _jumpTarget = to;
+    });
     await _flipController.animateTo(
       1,
       duration: duration ?? _kFlipDuration,
@@ -133,9 +150,27 @@ class _BookReaderScreenState extends State<BookReaderScreen>
     );
     if (!mounted) return;
 
-    setState(() => _currentPageIndex += forward ? 1 : -1);
+    setState(() {
+      _currentPageIndex = target;
+      _jumpTarget = null;
+    });
     _flipController.value = 0;
     _saveProgress();
+  }
+
+  /// Flips straight to [page], whichever direction it lies in.
+  void _jumpToPage(int page) {
+    if (page == _currentPageIndex || page < 0 || page >= _pages.length) return;
+    _turnPage(forward: page > _currentPageIndex, to: page);
+  }
+
+  Future<void> _openBookmarks() async {
+    final page = await showBookmarksSheet(
+      context,
+      book: widget.book,
+      currentPage: _currentPageIndex,
+    );
+    if (page != null && mounted) _jumpToPage(page);
   }
 
   void _nextPage() => _turnPage(forward: true);
@@ -263,6 +298,8 @@ class _BookReaderScreenState extends State<BookReaderScreen>
         const SingleActivator(LogicalKeyboardKey.space, shift: true):
             _previousPage,
         const SingleActivator(LogicalKeyboardKey.keyB): _toggleBookmark,
+        const SingleActivator(LogicalKeyboardKey.keyB, shift: true):
+            _openBookmarks,
         const SingleActivator(LogicalKeyboardKey.escape): () =>
             Navigator.maybePop(context),
       },
@@ -313,10 +350,16 @@ class _BookReaderScreenState extends State<BookReaderScreen>
                                 isDragging: _isDragging,
                                 isFlippingForward: _isFlippingForward,
                                 currentPage: _pages[_currentPageIndex],
-                                nextPage: _hasNext
+                                nextPage:
+                                    _jumpTarget != null && _isFlippingForward
+                                    ? _pages[_jumpTarget!]
+                                    : _hasNext
                                     ? _pages[_currentPageIndex + 1]
                                     : '',
-                                previousPage: _hasPrev
+                                previousPage:
+                                    _jumpTarget != null && !_isFlippingForward
+                                    ? _pages[_jumpTarget!]
+                                    : _hasPrev
                                     ? _pages[_currentPageIndex - 1]
                                     : '',
                                 flipProgress: _flipController,
@@ -366,6 +409,11 @@ class _BookReaderScreenState extends State<BookReaderScreen>
             tooltip: 'Reading settings',
             onPressed: () => showReaderSettingsSheet(context),
             icon: Icon(Icons.text_fields, color: palette.icon),
+          ),
+          IconButton(
+            tooltip: 'Bookmarks (Shift+B)',
+            onPressed: _openBookmarks,
+            icon: Icon(Icons.bookmarks_outlined, color: palette.icon),
           ),
           IconButton(
             tooltip: isPageBookmarked ? 'Remove bookmark (B)' : 'Bookmark (B)',

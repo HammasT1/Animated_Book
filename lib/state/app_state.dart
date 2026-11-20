@@ -43,12 +43,17 @@ class AppState extends ChangeNotifier {
   ReaderFont get font => _font;
 
   void _load() {
-    _readerTheme = ReaderTheme.values.asNameMap()[_prefs.getString(_kTheme)] ??
+    _readerTheme =
+        ReaderTheme.values.asNameMap()[_prefs.getString(_kTheme)] ??
         ReaderTheme.light;
-    _fontSize = (_prefs.getDouble(_kFontSize) ?? defaultFontSize)
-        .clamp(minFontSize, maxFontSize);
-    _lineHeight = (_prefs.getDouble(_kLineHeight) ?? defaultLineHeight)
-        .clamp(minLineHeight, maxLineHeight);
+    _fontSize = (_prefs.getDouble(_kFontSize) ?? defaultFontSize).clamp(
+      minFontSize,
+      maxFontSize,
+    );
+    _lineHeight = (_prefs.getDouble(_kLineHeight) ?? defaultLineHeight).clamp(
+      minLineHeight,
+      maxLineHeight,
+    );
     _font =
         ReaderFont.values.asNameMap()[_prefs.getString(_kFont)] ??
         ReaderFont.serif;

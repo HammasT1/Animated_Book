@@ -92,7 +92,10 @@ class PageFlipWidget extends StatelessWidget {
             builder: (context, child) {
               double magnitude = flipProgress.value * math.pi / 2;
               if (isDragging) {
-                final dragRatio = (dragOffset / kMaxDragOffset).clamp(-1.0, 1.0);
+                final dragRatio = (dragOffset / kMaxDragOffset).clamp(
+                  -1.0,
+                  1.0,
+                );
                 magnitude += dragRatio.abs() * kDragTilt;
               }
               magnitude = magnitude.clamp(0.0, math.pi / 2);

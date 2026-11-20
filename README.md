@@ -116,6 +116,7 @@ Turn pages from the keyboard, bookmark with <kbd>B</kbd>, close with <kbd>Esc</k
 - **Swipeable library** of book covers via `PageView`
 - **Continue reading** with progress on every cover
 - **Per-page bookmarks** with a ribbon on the page
+- **Bookmarks list** with a preview of each page and one-flip jump-to-page
 - **Illuminated drop caps** that scale with your text size
 - **Page counter** (`Page x of y`) in the nav tray
 
@@ -174,6 +175,7 @@ Turn pages from the keyboard, bookmark with <kbd>B</kbd>, close with <kbd>Esc</k
 | 📖 Reader | <kbd>→</kbd> · <kbd>PgDn</kbd> · <kbd>Space</kbd> | Next page |
 | 📖 Reader | <kbd>←</kbd> · <kbd>PgUp</kbd> · <kbd>Shift</kbd>+<kbd>Space</kbd> | Previous page |
 | 📖 Reader | <kbd>B</kbd> | Toggle bookmark |
+| 📖 Reader | <kbd>Shift</kbd>+<kbd>B</kbd> | Open the bookmarks list |
 | 📖 Reader | <kbd>Esc</kbd> | Back to library |
 | 📖 Reader | 🖱️ Scroll wheel | Scroll the page, then turn at the edge |
 | 📚 Library | <kbd>←</kbd> · <kbd>→</kbd> | Browse books |
@@ -336,7 +338,7 @@ Animated_Book/
 - [x] Keyboard & mouse controls
 - [ ] Two-page spread in landscape and on desktop
 - [ ] Page-curl effect with a shadow along the fold
-- [ ] Bookmarks list with jump-to-page
+- [x] Bookmarks list with jump-to-page
 - [ ] Load real books from files (`.txt` / `.epub`)
 - [ ] Highlights and margin notes
 
