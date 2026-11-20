@@ -12,6 +12,7 @@ import '../theme/app_theme.dart';
 import '../widgets/bookmarks_sheet.dart';
 import '../widgets/page_flip.dart';
 import '../widgets/reader_settings_sheet.dart';
+import '../widgets/spread_flip.dart';
 import '../widgets/theme_toggle_button.dart';
 
 /// Drag distance (px) past which releasing always turns the page.
@@ -66,7 +67,12 @@ class _BookReaderScreenState extends State<BookReaderScreen>
   /// turned to. When the text re-paginates, the reader lands on whichever
   /// new page holds this offset, so changing the font never loses the place.
   late int _anchor;
+
+  /// The page on screen; in a two-page spread, the left page.
   PageRange _page = const PageRange(0, 0);
+
+  /// Whether the reading area is wide enough for two pages side by side.
+  bool _isSpread = false;
   double _dragOffset = 0;
   bool _isDragging = false;
   bool _isFlippingForward = true;
@@ -76,8 +82,23 @@ class _BookReaderScreenState extends State<BookReaderScreen>
   PageRange? _jumpTarget;
   DateTime _wheelLockedUntil = DateTime.fromMillisecondsSinceEpoch(0);
 
-  PageRange? get _nextPageRange => _pagination?.after(_page);
-  PageRange? get _previousPageRange => _pagination?.before(_page);
+  /// Where a forward or backward turn lands: the next page, or in a spread
+  /// the left page of the next spread.
+  PageRange? get _nextPageRange =>
+      _isSpread ? _pagination?.spreadAfter(_page) : _pagination?.after(_page);
+  PageRange? get _previousPageRange =>
+      _isSpread ? _pagination?.spreadBefore(_page) : _pagination?.before(_page);
+
+  /// The right page of the spread on screen (null when it's blank, or when
+  /// showing a single page).
+  PageRange? get _rightPage => _isSpread ? _pagination?.rightOf(_page) : null;
+
+  /// Everything on screen: the page, or both pages of the spread.
+  PageRange get _onScreen => PageRange(_page.start, (_rightPage ?? _page).end);
+
+  /// The page (or spread's left page) that holds [offset].
+  PageRange _locate(int offset) =>
+      _isSpread ? _pagination!.spreadAt(offset) : _pagination!.pageAt(offset);
   bool get _hasNext => _nextPageRange != null;
   bool get _hasPrev => _previousPageRange != null;
 
@@ -133,7 +154,7 @@ class _BookReaderScreenState extends State<BookReaderScreen>
 
   void _saveProgress() => AppStateScope.read(
     context,
-  ).setPosition(widget.book.id, ReadingPosition(_anchor, _page.end));
+  ).setPosition(widget.book.id, ReadingPosition(_anchor, _onScreen.end));
 
   // ---------------------------------------------------------------------------
   // Pagination
@@ -147,14 +168,15 @@ class _BookReaderScreenState extends State<BookReaderScreen>
     if (key == _paginationKey) return;
     _paginationKey = key;
 
+    _isSpread = useTwoPageSpread(pageArea);
     final pagination = _pagination = BookPagination(
       text: _text,
       chapterStarts: widget.book.chapterStarts,
-      size: pageTextSize(pageArea),
+      size: _isSpread ? spreadPageTextSize(pageArea) : pageTextSize(pageArea),
       style: style,
       textScaler: textScaler,
     );
-    _page = pagination.pageAt(_anchor);
+    _page = _locate(_anchor);
 
     final generation = ++_paginationGeneration;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -223,7 +245,7 @@ class _BookReaderScreenState extends State<BookReaderScreen>
 
     setState(() {
       _anchor = targetStart;
-      _page = _pagination!.pageAt(_anchor);
+      _page = _locate(_anchor);
       _jumpTarget = null;
     });
     _flipController.value = 0;
@@ -234,7 +256,7 @@ class _BookReaderScreenState extends State<BookReaderScreen>
   void _jumpToOffset(int offset) {
     final pagination = _pagination;
     if (pagination == null) return;
-    final page = pagination.pageAt(offset);
+    final page = _locate(offset);
     if (page == _page) return;
     _turnPage(forward: page.start > _page.start, to: page);
   }
@@ -247,7 +269,7 @@ class _BookReaderScreenState extends State<BookReaderScreen>
       bookId: widget.book.id,
       text: _text,
       pagination: pagination,
-      currentPage: _page,
+      currentPage: _onScreen,
     );
     if (offset != null && mounted) _jumpToOffset(offset);
   }
@@ -344,7 +366,7 @@ class _BookReaderScreenState extends State<BookReaderScreen>
 
   void _toggleBookmark() => AppStateScope.read(
     context,
-  ).toggleBookmark(widget.book.id, _page.start, _page.end);
+  ).toggleBookmark(widget.book.id, _onScreen.start, _onScreen.end);
 
   // ---------------------------------------------------------------------------
   // Build
@@ -410,7 +432,7 @@ class _BookReaderScreenState extends State<BookReaderScreen>
                   child: SafeArea(
                     child: Column(
                       children: [
-                        _buildTopBar(theme, palette, isBookmarked(_page)),
+                        _buildTopBar(theme, palette, isBookmarked(_onScreen)),
                         Expanded(
                           child: LayoutBuilder(
                             builder: (context, constraints) {
@@ -446,25 +468,63 @@ class _BookReaderScreenState extends State<BookReaderScreen>
       child: GestureDetector(
         onHorizontalDragUpdate: _onHorizontalDragUpdate,
         onHorizontalDragEnd: _onHorizontalDragEnd,
-        child: PageFlipWidget(
-          dragOffset: _dragOffset,
-          isDragging: _isDragging,
-          isFlippingForward: _isFlippingForward,
-          currentPage: _pageSpan(_page, style)!,
-          // During a jump the page revealed underneath is the destination.
-          nextPage: _pageSpan(
-            jump != null && _isFlippingForward ? jump : _nextPageRange,
-            style,
-          ),
-          previousPage: _pageSpan(
-            jump != null && !_isFlippingForward ? jump : _previousPageRange,
-            style,
-          ),
-          flipProgress: _flipController,
-          isCurrentPageBookmarked: isBookmarked(_page),
-          turnStyle: AppStateScope.of(context).turnStyle,
-        ),
+        child: _isSpread
+            ? _buildSpread(style, isBookmarked)
+            : PageFlipWidget(
+                dragOffset: _dragOffset,
+                isDragging: _isDragging,
+                isFlippingForward: _isFlippingForward,
+                currentPage: _pageSpan(_page, style)!,
+                // During a jump the page revealed underneath is the destination.
+                nextPage: _pageSpan(
+                  jump != null && _isFlippingForward ? jump : _nextPageRange,
+                  style,
+                ),
+                previousPage: _pageSpan(
+                  jump != null && !_isFlippingForward
+                      ? jump
+                      : _previousPageRange,
+                  style,
+                ),
+                flipProgress: _flipController,
+                isCurrentPageBookmarked: isBookmarked(_page),
+                turnStyle: AppStateScope.of(context).turnStyle,
+              ),
       ),
+    );
+  }
+
+  Widget _buildSpread(
+    PageTextStyle style,
+    bool Function(PageRange page) isBookmarked,
+  ) {
+    final pagination = _pagination!;
+    final jump = _jumpTarget;
+    // During a jump the spread revealed underneath is the destination.
+    final next = jump != null && _isFlippingForward ? jump : _nextPageRange;
+    final previous = jump != null && !_isFlippingForward
+        ? jump
+        : _previousPageRange;
+    final right = _rightPage;
+    return SpreadFlipWidget(
+      left: _pageSpan(_page, style),
+      right: _pageSpan(right, style),
+      nextLeft: _pageSpan(next, style),
+      nextRight: _pageSpan(
+        next == null ? null : pagination.rightOf(next),
+        style,
+      ),
+      previousLeft: _pageSpan(previous, style),
+      previousRight: _pageSpan(
+        previous == null ? null : pagination.rightOf(previous),
+        style,
+      ),
+      flipProgress: _flipController,
+      dragOffset: _dragOffset,
+      isDragging: _isDragging,
+      isFlippingForward: _isFlippingForward,
+      isLeftBookmarked: isBookmarked(_page),
+      isRightBookmarked: right != null && isBookmarked(right),
     );
   }
 
@@ -515,14 +575,19 @@ class _BookReaderScreenState extends State<BookReaderScreen>
     );
   }
 
-  /// "Page 12 of 340", or how far through the book while a long book is
-  /// still being paginated.
+  /// "Page 12 of 340" (or "Pages 12–13 of 340" in a spread), or how far
+  /// through the book while a long book is still being paginated.
   String get _pageLabel {
     final pagination = _pagination;
     final index = pagination?.indexOf(_page);
     final count = pagination?.pageCount;
-    if (index != null && count != null) return 'Page ${index + 1} of $count';
-    final percent = _text.isEmpty ? 100 : (_page.end * 100 ~/ _text.length);
+    if (index != null && count != null) {
+      return _rightPage != null
+          ? 'Pages ${index + 1}\u2013${index + 2} of $count'
+          : 'Page ${index + 1} of $count';
+    }
+    final end = _onScreen.end;
+    final percent = _text.isEmpty ? 100 : (end * 100 ~/ _text.length);
     return '$percent%';
   }
 

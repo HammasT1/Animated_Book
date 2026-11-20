@@ -155,10 +155,10 @@ class _PageFlipWidgetState extends State<PageFlipWidget> {
               ),
               child: Stack(
                 children: [
-                  _PaperTexture(opacity: palette.textureOpacity),
+                  PaperTexture(opacity: palette.textureOpacity),
                   Padding(
                     padding: const EdgeInsets.all(24),
-                    child: _PageText(text: underlayPage),
+                    child: PageText(text: underlayPage),
                   ),
                 ],
               ),
@@ -221,7 +221,7 @@ class _PageFlipWidgetState extends State<PageFlipWidget> {
               );
             },
             // Built once per page, not once per animation frame.
-            child: _PageText(text: widget.currentPage),
+            child: PageText(text: widget.currentPage),
           ),
         ],
       ),
@@ -254,7 +254,7 @@ class _PageFlipWidgetState extends State<PageFlipWidget> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Stack(
         children: [
-          _PaperTexture(opacity: palette.textureOpacity),
+          PaperTexture(opacity: palette.textureOpacity),
 
           if (widget.isCurrentPageBookmarked)
             Positioned(
@@ -300,8 +300,8 @@ class _PageFlipWidgetState extends State<PageFlipWidget> {
   }
 }
 
-class _PaperTexture extends StatelessWidget {
-  const _PaperTexture({required this.opacity});
+class PaperTexture extends StatelessWidget {
+  const PaperTexture({super.key, required this.opacity});
 
   final double opacity;
 
@@ -322,8 +322,8 @@ class _PaperTexture extends StatelessWidget {
 
 /// Page body. Pagination already sized the text to fit, so the scroll view
 /// is only a safety net (e.g. if a font hasn't finished loading yet).
-class _PageText extends StatelessWidget {
-  const _PageText({required this.text});
+class PageText extends StatelessWidget {
+  const PageText({super.key, required this.text});
 
   final InlineSpan text;
 
@@ -331,7 +331,11 @@ class _PageText extends StatelessWidget {
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
-      child: Text.rich(text),
+      // RichText, not Text.rich: Text.rich wraps the span in the ambient
+      // DefaultTextStyle, whose paragraph metrics make every line a little
+      // taller than pagination measured, so a full page would overflow.
+      // Pagination builds its paragraph from this exact span and scaler.
+      child: RichText(text: text, textScaler: MediaQuery.textScalerOf(context)),
     );
   }
 }

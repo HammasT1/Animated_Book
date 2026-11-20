@@ -8,6 +8,7 @@ import 'package:animated_book/state/app_state.dart';
 import 'package:animated_book/theme/app_theme.dart';
 import 'package:animated_book/widgets/page_curl.dart';
 import 'package:animated_book/widgets/page_flip.dart';
+import 'package:animated_book/widgets/spread_flip.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -369,6 +370,70 @@ void main() {
       await tester.tap(find.byTooltip('Next page'));
       await tester.pumpAndSettle();
       expect(_pageInfo(tester), (2, total));
+    });
+  });
+
+  group('Two-page spread', () {
+    Future<AppState> openWide(WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1400, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      // Large text, so the book runs to several spreads.
+      final state = await _freshState({'reader.fontSize': 28.0});
+      await tester.pumpWidget(AnimatedBookApp(state: state));
+      await _openFirstBook(tester);
+      return state;
+    }
+
+    final spreadLabel = RegExp(r'^Pages (\d+)\u2013(\d+) of (\d+)$');
+
+    testWidgets('shows two pages when the window is wide', (tester) async {
+      final state = await openWide(tester);
+      expect(find.byType(SpreadFlipWidget), findsOneWidget);
+      expect(find.byType(PageFlipWidget), findsNothing);
+      final label = tester.widget<Text>(find.textContaining(spreadLabel)).data!;
+      final total = int.parse(spreadLabel.firstMatch(label)![3]!);
+      expect(label, 'Pages 1\u20132 of $total');
+      expect(total, greaterThan(2));
+
+      // A turn moves a whole spread.
+      await tester.tap(find.byTooltip('Next page'));
+      await tester.pumpAndSettle();
+      expect(
+        find.textContaining(RegExp('^Pages? 3(\u20134)? of $total\$')),
+        findsOneWidget,
+      );
+      // Progress counts both pages on screen.
+      final position = state.positionOf(firstBook.id)!;
+      expect(position.end, greaterThan(position.start));
+
+      await tester.tap(find.byTooltip('Previous page'));
+      await tester.pumpAndSettle();
+      expect(find.text('Pages 1\u20132 of $total'), findsOneWidget);
+    });
+
+    testWidgets('a bookmark covers the spread on screen', (tester) async {
+      final state = await openWide(tester);
+      await tester.tap(find.byTooltip('Bookmark (B)'));
+      await tester.pump();
+      expect(state.bookmarksFor(firstBook.id), {0});
+      expect(find.byTooltip('Remove bookmark (B)'), findsOneWidget);
+    });
+
+    testWidgets('narrowing the window goes back to one page, same place', (
+      tester,
+    ) async {
+      final state = await openWide(tester);
+      await tester.tap(find.byTooltip('Next page'));
+      await tester.pumpAndSettle();
+      final anchor = state.positionOf(firstBook.id)!.start;
+      expect(anchor, greaterThan(0));
+
+      tester.view.physicalSize = const Size(700, 900);
+      await tester.pumpAndSettle();
+      expect(find.byType(PageFlipWidget), findsOneWidget);
+      expect(find.byType(SpreadFlipWidget), findsNothing);
+      expect(state.positionOf(firstBook.id)!.start, anchor);
     });
   });
 

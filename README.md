@@ -102,6 +102,7 @@ Turn pages from the keyboard, bookmark with <kbd>B</kbd>, close with <kbd>Esc</k
     <td width="50%" valign="top">
 
 ### 🎞️ Motion
+- **Two-page spread** on wide screens: the right page turns over the spine like a real leaf, with the next page on its back
 - **Paper-like page curl**: the page bends around a cylinder, shows its translucent back, and casts shadows along the fold and onto the page beneath
 - **3D page flip** built on `Matrix4` perspective transforms, switchable in settings
 - **Drag-to-flip** with a live preview that tracks your swipe
@@ -234,6 +235,17 @@ flowchart LR
 ```
 
 <details>
+<summary><b>📖 How the two-page spread works</b></summary>
+<br/>
+
+1. When the reading area is at least 960 px wide and clearly landscape (tablets, desktop and web windows), the book opens flat with two pages and a shaded gutter at the spine. Phones turned sideways keep one page, because two pages there would each be only a few lines tall.
+2. Pages pair up **within each chapter**, so a chapter always opens on a left page, and one with an odd number of pages ends on a blank right page, as in a printed book. Spreads stay the same however much of a long book has been paginated.
+3. A turn is a leaf rotating about the spine with `Matrix4.rotateY`. Until it stands upright it shows its front (the current right page). After that it shows its back (the next left page), landing on the other side. It is shaded as it tilts and casts a shadow on the pages beneath.
+4. Bookmarks, progress and the page label ("Pages 3–4 of 120") cover both pages. Narrowing the window switches back to one page at the same sentence.
+
+</details>
+
+<details>
 <summary><b>📥 How books are imported</b></summary>
 <br/>
 
@@ -277,7 +289,7 @@ flowchart LR
 <summary><b>📐 How pages are cut to fit</b></summary>
 <br/>
 
-1. Each book is one continuous text. When the reader knows its page size (from a `LayoutBuilder`), `paginate()` lays the text out as a `ui.Paragraph`, built exactly as `Text.rich` builds it, so lines break in the same places as on screen.
+1. Each book is one continuous text. When the reader knows its page size (from a `LayoutBuilder`), `paginate()` lays the text out as a `ui.Paragraph` built from exactly the span and style the page is drawn with (pages are drawn with `RichText`, not `Text.rich`, whose surrounding default style would make every line slightly taller), so lines break in the same places as on screen.
 2. About 12,000 characters are laid out at a time and many pages are cut from each layout: `computeLineMetrics()` gives each line's height, and a binary search over `getLineNumberAt()` finds where each page's first line starts. Pages break between words or after a hyphen. A whole novel paginates in well under a second.
 3. Chapters always start on a new page, so each chapter is paginated on its own. Only the chapter you're reading is paginated before the page appears. The rest are filled in one per frame interval (never during an animation), and until then the tray shows a percentage instead of "Page x of y".
 4. A paragraph that carries over from the previous page doesn't get a second drop cap.
@@ -384,7 +396,7 @@ Animated_Book/
 - [x] Velocity-aware flicks
 - [x] Keyboard & mouse controls
 - [x] Pages re-flow to fit the screen and your typography
-- [ ] Two-page spread in landscape and on desktop
+- [x] Two-page spread in landscape and on desktop
 - [x] Page-curl effect with a shadow along the fold
 - [x] Bookmarks list with jump-to-page
 - [x] Load real books from files (`.txt` / `.epub`)

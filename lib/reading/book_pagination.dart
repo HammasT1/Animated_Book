@@ -93,6 +93,44 @@ class BookPagination {
     return _lastPageUpTo(c - 1);
   }
 
+  // ---------------------------------------------------------------------------
+  // Two-page spreads
+  //
+  // Pages pair up within each chapter: a chapter always opens on a left page,
+  // and one with an odd number of pages ends on a blank right page, as in a
+  // printed book. Pairing within chapters keeps spreads stable however much
+  // of the rest of the book has been paginated. A spread is identified by
+  // its left page.
+  // ---------------------------------------------------------------------------
+
+  /// The left page of the spread holding [offset].
+  PageRange spreadAt(int offset) {
+    final page = pageAt(offset);
+    final c = _chapterOf(page.start);
+    final pages = _chapter(c);
+    final i = pages.indexOf(page);
+    return i <= 0 ? page : pages[i - i % 2];
+  }
+
+  /// The right page of the spread starting at [left], or null if it's blank.
+  PageRange? rightOf(PageRange left) {
+    final pages = _chapter(_chapterOf(left.start));
+    final i = pages.indexOf(left);
+    return i >= 0 && i + 1 < pages.length ? pages[i + 1] : null;
+  }
+
+  /// The left page of the next spread, or null at the end of the book.
+  PageRange? spreadAfter(PageRange left) {
+    final next = after(rightOf(left) ?? left);
+    return next == null ? null : spreadAt(next.start);
+  }
+
+  /// The left page of the previous spread, or null at the start.
+  PageRange? spreadBefore(PageRange left) {
+    final previous = before(left);
+    return previous == null ? null : spreadAt(previous.start);
+  }
+
   /// 0-based page number of [page], once every chapter before it is done.
   int? indexOf(PageRange page) {
     final c = _chapterOf(page.start);

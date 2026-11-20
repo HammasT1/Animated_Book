@@ -189,6 +189,47 @@ void main() {
       expect(p.pageCount, walk(p).length);
     });
 
+    test('spreads pair pages within chapters, each chapter opening left', () {
+      final p = build();
+      final pages = walk(p);
+      final spreads = [p.spreadAt(0)];
+      for (var next = p.spreadAfter(spreads.last); next != null;) {
+        spreads.add(next);
+        next = p.spreadAfter(next);
+      }
+      // Every page appears exactly once, as a left or a right page.
+      final shown = [
+        for (final left in spreads) ...[left, ?p.rightOf(left)],
+      ];
+      expect(shown, pages);
+      // Every chapter starts on a left page.
+      for (final start in starts) {
+        expect(spreads.any((left) => left.start == start), isTrue);
+      }
+      // A spread never straddles a chapter break.
+      for (final left in spreads) {
+        final right = p.rightOf(left);
+        if (right == null) continue;
+        expect(
+          starts.any((s) => s > left.start && s <= right.start),
+          isFalse,
+          reason: '$left + $right',
+        );
+      }
+      // Walking back visits the same spreads, and any offset on a right
+      // page finds its spread's left page.
+      final back = [spreads.last];
+      for (var prev = p.spreadBefore(back.last); prev != null;) {
+        back.add(prev);
+        prev = p.spreadBefore(prev);
+      }
+      expect(back.reversed.toList(), spreads);
+      for (final left in spreads) {
+        final right = p.rightOf(left);
+        if (right != null) expect(p.spreadAt(right.start + 1), left);
+      }
+    });
+
     test('short books are paginated straight away', () {
       final p = build(eagerLimit: 1 << 30);
       expect(p.isComplete, isTrue);

@@ -16,6 +16,8 @@ Future<int?> showBookmarksSheet(
   required String bookId,
   required String text,
   required BookPagination pagination,
+
+  /// The page on screen, or both pages of a spread.
   required PageRange currentPage,
 }) {
   return showModalBottomSheet<int>(
@@ -101,7 +103,10 @@ class _BookmarksSheet extends StatelessWidget {
                   itemCount: marked.length,
                   itemBuilder: (context, i) {
                     final range = marked[i];
-                    final isCurrent = range == currentPage;
+                    // In a two-page spread, either page counts as here.
+                    final isCurrent =
+                        range.start >= currentPage.start &&
+                        range.start < currentPage.end;
                     return ListTile(
                       key: ValueKey('bookmark-${range.start}'),
                       contentPadding: const EdgeInsets.only(left: 20, right: 8),
