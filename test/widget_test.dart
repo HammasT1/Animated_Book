@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:animated_book/data/library.dart';
 import 'package:animated_book/data/library_store.dart';
 import 'package:animated_book/widgets/book_cover.dart';
+import 'package:animated_book/feedback/page_turn_feedback.dart';
 import 'package:animated_book/main.dart';
 import 'package:animated_book/state/app_state.dart';
 import 'package:animated_book/theme/app_theme.dart';
@@ -437,6 +438,72 @@ void main() {
     });
   });
 
+  group('Page-turn sound and haptics', () {
+    Future<(AppState, _RecordingFeedback)> open(WidgetTester tester) async {
+      final state = await _freshState();
+      final feedback = _RecordingFeedback();
+      await tester.pumpWidget(
+        AnimatedBookApp(state: state, feedback: feedback),
+      );
+      await _openFirstBook(tester);
+      return (state, feedback);
+    }
+
+    testWidgets('a turn plays the sound, then taps as the page lands', (
+      tester,
+    ) async {
+      final (_, feedback) = await open(tester);
+      await tester.tap(find.byTooltip('Next page'));
+      await tester.pump();
+      expect(feedback.sounds, 1);
+      expect(feedback.taps, 0); // not until the page lands
+      await tester.pumpAndSettle();
+      expect(feedback.taps, 1);
+    });
+
+    testWidgets('a drag that snaps back is silent', (tester) async {
+      final (_, feedback) = await open(tester);
+      await tester.timedDrag(
+        find.byType(PageFlipWidget),
+        const Offset(-40, 0),
+        const Duration(seconds: 1),
+      );
+      await tester.pumpAndSettle();
+      expect(feedback.sounds, 0);
+      expect(feedback.taps, 0);
+    });
+
+    testWidgets('both can be switched off in reading settings', (tester) async {
+      final (state, feedback) = await open(tester);
+      expect(state.turnSound, isTrue);
+      expect(state.haptics, isTrue);
+
+      await tester.tap(find.byTooltip('Reading settings'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Page-turn sound'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Vibrate when a page lands'));
+      await tester.pumpAndSettle();
+      expect(state.turnSound, isFalse);
+      expect(state.haptics, isFalse);
+
+      await tester.tapAt(const Offset(10, 10)); // close the sheet
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Next page'));
+      await tester.pumpAndSettle();
+      expect(_pageInfo(tester).$1, 2);
+      expect(feedback.sounds, 0);
+      expect(feedback.taps, 0);
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getBool('reader.turnSound'), isFalse);
+      expect(prefs.getBool('reader.haptics'), isFalse);
+      final reloaded = AppState(prefs);
+      expect(reloaded.turnSound, isFalse);
+      expect(reloaded.haptics, isFalse);
+    });
+  });
+
   group('AppState persistence', () {
     test('reader settings survive a restart', () async {
       final state = await _freshState();
@@ -484,4 +551,16 @@ void main() {
       expect(state.readerTheme, ReaderTheme.light);
     });
   });
+}
+
+/// Counts page-turn feedback instead of playing it.
+class _RecordingFeedback extends PageTurnFeedback {
+  int sounds = 0;
+  int taps = 0;
+
+  @override
+  void turnStarted() => sounds++;
+
+  @override
+  void turnLanded() => taps++;
 }

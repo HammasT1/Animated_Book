@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 
-/// Opens the "Aa" panel: paper style, page turn, typeface, text size and
-/// line spacing.
+/// Opens the "Aa" panel: paper style, page turn (style, sound, haptics),
+/// typeface, text size and line spacing.
 /// Every change applies live to the page behind the sheet and is saved.
 Future<void> showReaderSettingsSheet(BuildContext context) {
   return showModalBottomSheet<void>(
@@ -28,128 +28,149 @@ class _ReaderSettingsSheet extends StatelessWidget {
       letterSpacing: 0.4,
     );
 
+    // Scrolls if needed: on a phone in landscape it's taller than the screen.
     return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('Paper', style: labelStyle),
-            const SizedBox(height: 8),
-            SegmentedButton<ReaderTheme>(
-              segments: [
-                for (final t in ReaderTheme.values)
-                  ButtonSegment(
-                    value: t,
-                    label: Text(t.label),
-                    icon: _Swatch(color: ReaderPalette.forTheme(t).paper),
-                  ),
-              ],
-              selected: {state.readerTheme},
-              showSelectedIcon: false,
-              onSelectionChanged: (s) => state.setReaderTheme(s.first),
-            ),
-            const SizedBox(height: 20),
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Paper', style: labelStyle),
+              const SizedBox(height: 8),
+              SegmentedButton<ReaderTheme>(
+                segments: [
+                  for (final t in ReaderTheme.values)
+                    ButtonSegment(
+                      value: t,
+                      label: Text(t.label),
+                      icon: _Swatch(color: ReaderPalette.forTheme(t).paper),
+                    ),
+                ],
+                selected: {state.readerTheme},
+                showSelectedIcon: false,
+                onSelectionChanged: (s) => state.setReaderTheme(s.first),
+              ),
+              const SizedBox(height: 20),
 
-            Text('Page turn', style: labelStyle),
-            const SizedBox(height: 8),
-            SegmentedButton<PageTurnStyle>(
-              segments: [
-                for (final t in PageTurnStyle.values)
-                  ButtonSegment(
-                    value: t,
-                    label: Text(t.label),
-                    icon: Icon(t.icon, size: 18),
-                  ),
-              ],
-              selected: {state.turnStyle},
-              showSelectedIcon: false,
-              onSelectionChanged: (s) => state.setTurnStyle(s.first),
-            ),
-            const SizedBox(height: 20),
+              Text('Page turn', style: labelStyle),
+              const SizedBox(height: 8),
+              SegmentedButton<PageTurnStyle>(
+                segments: [
+                  for (final t in PageTurnStyle.values)
+                    ButtonSegment(
+                      value: t,
+                      label: Text(t.label),
+                      icon: Icon(t.icon, size: 18),
+                    ),
+                ],
+                selected: {state.turnStyle},
+                showSelectedIcon: false,
+                onSelectionChanged: (s) => state.setTurnStyle(s.first),
+              ),
+              const SizedBox(height: 4),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                secondary: const Icon(Icons.volume_up_outlined),
+                title: const Text('Page-turn sound'),
+                value: state.turnSound,
+                onChanged: state.setTurnSound,
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                secondary: const Icon(Icons.vibration),
+                title: const Text('Vibrate when a page lands'),
+                value: state.haptics,
+                onChanged: state.setHaptics,
+              ),
+              const SizedBox(height: 12),
 
-            Text('Typeface', style: labelStyle),
-            const SizedBox(height: 8),
-            SegmentedButton<ReaderFont>(
-              segments: [
-                for (final f in ReaderFont.values)
-                  ButtonSegment(
-                    value: f,
-                    label: Text(
-                      f.label,
-                      style: TextStyle(fontFamily: f.family),
+              Text('Typeface', style: labelStyle),
+              const SizedBox(height: 8),
+              SegmentedButton<ReaderFont>(
+                segments: [
+                  for (final f in ReaderFont.values)
+                    ButtonSegment(
+                      value: f,
+                      label: Text(
+                        f.label,
+                        style: TextStyle(fontFamily: f.family),
+                      ),
+                    ),
+                ],
+                selected: {state.font},
+                showSelectedIcon: false,
+                onSelectionChanged: (s) => state.setFont(s.first),
+              ),
+              const SizedBox(height: 20),
+
+              Row(
+                children: [
+                  Text('Text size', style: labelStyle),
+                  const Spacer(),
+                  Text('${state.fontSize.round()} pt', style: labelStyle),
+                ],
+              ),
+              Row(
+                children: [
+                  const Icon(Icons.text_decrease, size: 18),
+                  Expanded(
+                    child: Slider(
+                      value: state.fontSize,
+                      min: AppState.minFontSize,
+                      max: AppState.maxFontSize,
+                      divisions:
+                          ((AppState.maxFontSize - AppState.minFontSize) / 2)
+                              .round(),
+                      label: '${state.fontSize.round()}',
+                      onChanged: state.setFontSize,
                     ),
                   ),
-              ],
-              selected: {state.font},
-              showSelectedIcon: false,
-              onSelectionChanged: (s) => state.setFont(s.first),
-            ),
-            const SizedBox(height: 20),
-
-            Row(
-              children: [
-                Text('Text size', style: labelStyle),
-                const Spacer(),
-                Text('${state.fontSize.round()} pt', style: labelStyle),
-              ],
-            ),
-            Row(
-              children: [
-                const Icon(Icons.text_decrease, size: 18),
-                Expanded(
-                  child: Slider(
-                    value: state.fontSize,
-                    min: AppState.minFontSize,
-                    max: AppState.maxFontSize,
-                    divisions:
-                        ((AppState.maxFontSize - AppState.minFontSize) / 2)
-                            .round(),
-                    label: '${state.fontSize.round()}',
-                    onChanged: state.setFontSize,
-                  ),
-                ),
-                const Icon(Icons.text_increase, size: 22),
-              ],
-            ),
-
-            Row(
-              children: [
-                Text('Line spacing', style: labelStyle),
-                const Spacer(),
-                Text(state.lineHeight.toStringAsFixed(1), style: labelStyle),
-              ],
-            ),
-            Row(
-              children: [
-                const Icon(Icons.density_small, size: 18),
-                Expanded(
-                  child: Slider(
-                    value: state.lineHeight,
-                    min: AppState.minLineHeight,
-                    max: AppState.maxLineHeight,
-                    divisions:
-                        ((AppState.maxLineHeight - AppState.minLineHeight) * 10)
-                            .round(),
-                    label: state.lineHeight.toStringAsFixed(1),
-                    onChanged: (v) =>
-                        state.setLineHeight((v * 10).roundToDouble() / 10),
-                  ),
-                ),
-                const Icon(Icons.density_large, size: 18),
-              ],
-            ),
-
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: state.resetTypography,
-                icon: const Icon(Icons.restart_alt, size: 18),
-                label: const Text('Reset text'),
+                  const Icon(Icons.text_increase, size: 22),
+                ],
               ),
-            ),
-          ],
+
+              Row(
+                children: [
+                  Text('Line spacing', style: labelStyle),
+                  const Spacer(),
+                  Text(state.lineHeight.toStringAsFixed(1), style: labelStyle),
+                ],
+              ),
+              Row(
+                children: [
+                  const Icon(Icons.density_small, size: 18),
+                  Expanded(
+                    child: Slider(
+                      value: state.lineHeight,
+                      min: AppState.minLineHeight,
+                      max: AppState.maxLineHeight,
+                      divisions:
+                          ((AppState.maxLineHeight - AppState.minLineHeight) *
+                                  10)
+                              .round(),
+                      label: state.lineHeight.toStringAsFixed(1),
+                      onChanged: (v) =>
+                          state.setLineHeight((v * 10).roundToDouble() / 10),
+                    ),
+                  ),
+                  const Icon(Icons.density_large, size: 18),
+                ],
+              ),
+
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: state.resetTypography,
+                  icon: const Icon(Icons.restart_alt, size: 18),
+                  label: const Text('Reset text'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -109,6 +109,7 @@ Turn pages from the keyboard, bookmark with <kbd>B</kbd>, close with <kbd>Esc</k
 - **Velocity-aware flicks**: fast swipes turn, fast reverse swipes cancel
 - **Seamless hand-off**: the release continues from the drag angle
 - **Direction-aware hinge**: flips forward *and* backward
+- **Page-turn sound and haptics**: a soft paper rustle as a page turns and a light tap as it lands, each switchable in settings
 - **Hero cover transition** and a **staged reveal** of the reader chrome
 
     </td>
@@ -131,7 +132,7 @@ Turn pages from the keyboard, bookmark with <kbd>B</kbd>, close with <kbd>Esc</k
 
 ### 🎨 Design
 - **Light · Sepia · Dark** paper, cross-faded via `ThemeExtension`
-- **Reader settings**: page turn (curl or flip), text size 14–28, line spacing 1.4–2.2
+- **Reader settings**: page turn (curl or flip, sound, vibration), text size 14–28, line spacing 1.4–2.2
 - **Serif or Sans** typeface, both bundled with the app
 - Textured paper, layered shadows and gradients
 
@@ -246,6 +247,18 @@ flowchart LR
 </details>
 
 <details>
+<summary><b>🔊 How the page-turn sound is made</b></summary>
+<br/>
+
+1. The three sounds in `assets/sounds/` are **synthesized**, not recorded, by `tool/generate_page_sounds.py` (pure Python, no dependencies). Each one is band-limited noise shaped into a paper swish with a little flutter and crackle, ending in a soft low tap as the page lands. Edit the script and run `python3 tool/generate_page_sounds.py` to change them.
+2. Turns cycle through the three variations, each on its own `audioplayers` player, so quick turns don't cut each other off. Android uses the low-latency `SoundPool` path.
+3. The sound respects the phone's silent mode and mixes with any music already playing instead of pausing it.
+4. As the page settles, `HapticFeedback.lightImpact()` gives a light tap on devices that vibrate.
+5. **Aa → Page-turn sound / Vibrate when a page lands** switches each one off, and the choice is saved.
+
+</details>
+
+<details>
 <summary><b>📥 How books are imported</b></summary>
 <br/>
 
@@ -310,7 +323,7 @@ Flutter's `PointerSignalResolver` gives a scroll event to the **first** widget t
 <summary><b>🧰 Flutter APIs used</b></summary>
 <br/>
 
-`AnimationController` · `Tween` · `CurvedAnimation` · `Interval` · `AnimatedBuilder` · `Transform` · `Matrix4` · `Hero` · `PageView.builder` · `GestureDetector` · `Listener` · `PointerSignalResolver` · `CallbackShortcuts` · `Focus` · `ChangeNotifier` · `InheritedNotifier` · `ListenableBuilder` · `ThemeExtension` · `SegmentedButton` · `Slider` · `showModalBottomSheet` · `Text.rich` · `TextPainter` · `LayoutBuilder` · `RepaintBoundary.toImageSync` · `CustomPainter` · `ui.Paragraph` · `compute` · `file_picker` · `archive` · `xml` · `path_provider` · `ColorScheme.fromSeed` · `shared_preferences`
+`AnimationController` · `Tween` · `CurvedAnimation` · `Interval` · `AnimatedBuilder` · `Transform` · `Matrix4` · `Hero` · `PageView.builder` · `GestureDetector` · `Listener` · `PointerSignalResolver` · `CallbackShortcuts` · `Focus` · `ChangeNotifier` · `InheritedNotifier` · `ListenableBuilder` · `ThemeExtension` · `SegmentedButton` · `Slider` · `showModalBottomSheet` · `Text.rich` · `TextPainter` · `LayoutBuilder` · `RepaintBoundary.toImageSync` · `CustomPainter` · `ui.Paragraph` · `compute` · `file_picker` · `audioplayers` · `HapticFeedback` · `archive` · `xml` · `path_provider` · `ColorScheme.fromSeed` · `shared_preferences`
 
 </details>
 
@@ -400,6 +413,8 @@ Animated_Book/
 - [x] Page-curl effect with a shadow along the fold
 - [x] Bookmarks list with jump-to-page
 - [x] Load real books from files (`.txt` / `.epub`)
+- [x] Page-turn sound and haptics
+- [ ] Search inside a book and a chapter list
 - [ ] Highlights and margin notes
 
 ## 🤝 Contributing

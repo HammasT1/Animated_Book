@@ -4,6 +4,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
 import '../models/book.dart';
+import '../feedback/page_turn_feedback.dart';
 import '../reading/book_pagination.dart';
 import '../reading/pagination.dart';
 import '../widgets/book_cover.dart';
@@ -232,6 +233,9 @@ class _BookReaderScreenState extends State<BookReaderScreen>
     // Remember the destination by offset, in case the text is re-paginated
     // while the page is turning.
     final targetStart = target.start;
+    final state = AppStateScope.read(context);
+    final feedback = PageTurnFeedbackScope.of(context);
+    if (state.turnSound) feedback.turnStarted();
     setState(() {
       _isFlippingForward = forward;
       _jumpTarget = to;
@@ -250,6 +254,7 @@ class _BookReaderScreenState extends State<BookReaderScreen>
     });
     _flipController.value = 0;
     _saveProgress();
+    if (state.haptics) feedback.turnLanded();
   }
 
   /// Flips straight to the page holding [offset], whichever way it lies.

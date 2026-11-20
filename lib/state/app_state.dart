@@ -54,6 +54,8 @@ class AppState extends ChangeNotifier {
   static const _kLineHeight = 'reader.lineHeight';
   static const _kFont = 'reader.font';
   static const _kTurnStyle = 'reader.turnStyle';
+  static const _kTurnSound = 'reader.turnSound';
+  static const _kHaptics = 'reader.haptics';
   static const _kBookmarksPrefix = 'marks.';
   static const _kPositionPrefix = 'position.';
 
@@ -66,6 +68,8 @@ class AppState extends ChangeNotifier {
   double _lineHeight = defaultLineHeight;
   ReaderFont _font = ReaderFont.serif;
   PageTurnStyle _turnStyle = PageTurnStyle.curl;
+  bool _turnSound = true;
+  bool _haptics = true;
   final Map<String, Set<int>> _bookmarks = {};
   final Map<String, ReadingPosition> _positions = {};
 
@@ -75,6 +79,12 @@ class AppState extends ChangeNotifier {
   double get lineHeight => _lineHeight;
   ReaderFont get font => _font;
   PageTurnStyle get turnStyle => _turnStyle;
+
+  /// Play a paper sound when a page turns.
+  bool get turnSound => _turnSound;
+
+  /// A light vibration when a turned page lands.
+  bool get haptics => _haptics;
 
   void _load() {
     _readerTheme =
@@ -94,6 +104,8 @@ class AppState extends ChangeNotifier {
     _turnStyle =
         PageTurnStyle.values.asNameMap()[_prefs.getString(_kTurnStyle)] ??
         PageTurnStyle.curl;
+    _turnSound = _prefs.getBool(_kTurnSound) ?? true;
+    _haptics = _prefs.getBool(_kHaptics) ?? true;
 
     for (final key in _prefs.getKeys()) {
       if (key.startsWith(_kBookmarksPrefix)) {
@@ -196,6 +208,20 @@ class AppState extends ChangeNotifier {
     if (style == _turnStyle) return;
     _turnStyle = style;
     _prefs.setString(_kTurnStyle, style.name);
+    notifyListeners();
+  }
+
+  void setTurnSound(bool on) {
+    if (on == _turnSound) return;
+    _turnSound = on;
+    _prefs.setBool(_kTurnSound, on);
+    notifyListeners();
+  }
+
+  void setHaptics(bool on) {
+    if (on == _haptics) return;
+    _haptics = on;
+    _prefs.setBool(_kHaptics, on);
     notifyListeners();
   }
 
