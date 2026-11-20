@@ -59,9 +59,9 @@ A short, fast swipe now turns the page, a quick flick back cancels it, and the t
 <img src="assets/readme/flick.svg" width="100%" alt="Animated comparison: a quick 40 px flick turns the page, a slow 40 px drag snaps back"/>
 
 ### 🔖 Pick up where you left off
-Every cover shows its reading progress, and opening a book drops you on the page you were reading. Bookmarks, theme and typography are saved the moment they change.
+Every cover shows how far through the book you are, and opening a book drops you on the sentence you were reading, even after changing the text size or rotating the screen. Bookmarks, theme and typography are saved the moment they change.
 
-<img src="assets/readme/progress.svg" width="100%" alt="Animated covers showing Start reading, Continue · Page 2 of 3, and Finished · Read again"/>
+<img src="assets/readme/progress.svg" width="100%" alt="Animated covers showing Start reading, Continue · 67%, and Finished · Read again"/>
 
 ### ⌨️ Made for desktop & web too
 Turn pages from the keyboard, bookmark with <kbd>B</kbd>, close with <kbd>Esc</kbd>. The scroll wheel reads long pages first and only turns the page at the edge.
@@ -118,6 +118,7 @@ Turn pages from the keyboard, bookmark with <kbd>B</kbd>, close with <kbd>Esc</k
 - **Per-page bookmarks** with a ribbon on the page
 - **Bookmarks list** with a preview of each page and one-flip jump-to-page
 - **Illuminated drop caps** that scale with your text size
+- **Pages that fit your screen**: the text re-flows into pages whenever the window, text size, spacing or typeface changes, and you stay on the same sentence
 - **Page counter** (`Page x of y`) in the nav tray
 
     </td>
@@ -148,7 +149,7 @@ Turn pages from the keyboard, bookmark with <kbd>B</kbd>, close with <kbd>Esc</k
 ### ⌨️ Keyboard & mouse
 - Arrows, <kbd>Space</kbd>, <kbd>PgUp</kbd>/<kbd>PgDn</kbd> turn pages
 - <kbd>B</kbd> bookmarks, <kbd>Esc</kbd> closes the book
-- Scroll wheel turns pages at the edge of the text
+- Scroll wheel turns pages
 - Browse the shelf with <kbd>←</kbd>/<kbd>→</kbd>, open with <kbd>Enter</kbd>
 
     </td>
@@ -177,7 +178,7 @@ Turn pages from the keyboard, bookmark with <kbd>B</kbd>, close with <kbd>Esc</k
 | 📖 Reader | <kbd>B</kbd> | Toggle bookmark |
 | 📖 Reader | <kbd>Shift</kbd>+<kbd>B</kbd> | Open the bookmarks list |
 | 📖 Reader | <kbd>Esc</kbd> | Back to library |
-| 📖 Reader | 🖱️ Scroll wheel | Scroll the page, then turn at the edge |
+| 📖 Reader | 🖱️ Scroll wheel | Turn the page |
 | 📚 Library | <kbd>←</kbd> · <kbd>→</kbd> | Browse books |
 | 📚 Library | <kbd>Enter</kbd> · <kbd>Space</kbd> | Open the selected book |
 
@@ -214,14 +215,15 @@ flowchart LR
     Q --> M["🎨 MaterialApp<br/>ThemeExtension palette"]
     M --> L["📚 BookLibraryScreen<br/>PageView + progress"]
     L -- "tap cover · Hero" --> R["📖 BookReaderScreen"]
+    R --> G["📐 paginate()<br/>TextPainter line metrics"]
     R --> F["🎞️ PageFlipWidget<br/>Matrix4 3D hinge"]
     R --> T["Aa ReaderSettingsSheet"]
-    R -. "page · bookmark" .-> S
+    R -. "position · bookmark offsets" .-> S
     T -. "theme · size · font" .-> S
 
     classDef leather fill:#6B4423,stroke:#CBB69B,color:#FAF8F3
     classDef paper fill:#FAF8F3,stroke:#8B7355,color:#2C2420
-    class L,R,F leather
+    class L,R,F,G leather
     class P,S,Q,M,T paper
 ```
 
@@ -240,10 +242,23 @@ flowchart LR
 </details>
 
 <details>
+<summary><b>📐 How pages are cut to fit</b></summary>
+<br/>
+
+1. Each book is one continuous text. When the reader knows its page size (from a `LayoutBuilder`), `paginate()` lays the text out with a `TextPainter` in exactly the style the page will use.
+2. `computeLineMetrics()` finds the last whole line that fits the page height, and `getLineBoundary()` turns it into a character offset. That offset ends the page, so pages break between words or after a hyphen.
+3. Only about one page of text is laid out at a time, so the cost grows with the length of the book, not with the size of each layout.
+4. A paragraph that carries over from the previous page doesn't get a second drop cap.
+5. Progress and bookmarks are stored as **character offsets**, not page numbers. After a re-flow the reader opens whichever new page holds their offset, so they never lose their place.
+6. Colours are left out of the pagination key, so a theme cross-fade doesn't re-paginate on every frame.
+
+</details>
+
+<details>
 <summary><b>🖱️ How the scroll wheel knows when to turn</b></summary>
 <br/>
 
-Flutter's `PointerSignalResolver` gives a scroll event to the **first** widget that claims it, and a `Scrollable` only claims it when it can actually move. So while a long page still has text to scroll, the wheel scrolls it; once it hits the top or bottom, the reader's `Listener` claims the event and turns the page. A 900 ms cooldown stops trackpad momentum from flipping several pages at once.
+Flutter's `PointerSignalResolver` gives a scroll event to the **first** widget that claims it, and a `Scrollable` only claims it when it can actually move. Pages are sized to fit, so the wheel normally turns the page straight away. If a page ever does overflow (for example while a font is still loading), the text scrolls first and the page turns at the edge. A 900 ms cooldown stops trackpad momentum from flipping several pages at once.
 
 </details>
 
@@ -251,7 +266,7 @@ Flutter's `PointerSignalResolver` gives a scroll event to the **first** widget t
 <summary><b>🧰 Flutter APIs used</b></summary>
 <br/>
 
-`AnimationController` · `Tween` · `CurvedAnimation` · `Interval` · `AnimatedBuilder` · `Transform` · `Matrix4` · `Hero` · `PageView.builder` · `GestureDetector` · `Listener` · `PointerSignalResolver` · `CallbackShortcuts` · `Focus` · `ChangeNotifier` · `InheritedNotifier` · `ListenableBuilder` · `ThemeExtension` · `SegmentedButton` · `Slider` · `showModalBottomSheet` · `Text.rich` / `WidgetSpan` · `ColorScheme.fromSeed` · `shared_preferences`
+`AnimationController` · `Tween` · `CurvedAnimation` · `Interval` · `AnimatedBuilder` · `Transform` · `Matrix4` · `Hero` · `PageView.builder` · `GestureDetector` · `Listener` · `PointerSignalResolver` · `CallbackShortcuts` · `Focus` · `ChangeNotifier` · `InheritedNotifier` · `ListenableBuilder` · `ThemeExtension` · `SegmentedButton` · `Slider` · `showModalBottomSheet` · `Text.rich` · `TextPainter` · `LayoutBuilder` · `ColorScheme.fromSeed` · `shared_preferences`
 
 </details>
 
@@ -336,6 +351,7 @@ Animated_Book/
 - [x] Reader settings: paper, size, spacing, typeface
 - [x] Velocity-aware flicks
 - [x] Keyboard & mouse controls
+- [x] Pages re-flow to fit the screen and your typography
 - [ ] Two-page spread in landscape and on desktop
 - [ ] Page-curl effect with a shadow along the fold
 - [x] Bookmarks list with jump-to-page

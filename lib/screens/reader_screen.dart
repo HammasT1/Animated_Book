@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/book.dart';
+import '../reading/pagination.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 import '../widgets/bookmarks_sheet.dart';
@@ -50,7 +51,16 @@ class _BookReaderScreenState extends State<BookReaderScreen>
   late final Animation<Offset> _revealSlide;
   late final Animation<double> _scrimFade;
 
-  late int _currentPageIndex;
+  /// The book's text and its pages for the current size and typography.
+  late final String _text = widget.book.text;
+  List<PageRange> _pages = const [PageRange(0, 0)];
+  Object? _paginationKey;
+
+  /// Character offset the reader is anchored to: the start of the page they
+  /// turned to. When the text re-paginates, the reader lands on whichever
+  /// new page holds this offset, so changing the font never loses the place.
+  late int _anchor;
+  int _currentPageIndex = 0;
   double _dragOffset = 0;
   bool _isDragging = false;
   bool _isFlippingForward = true;
@@ -60,7 +70,6 @@ class _BookReaderScreenState extends State<BookReaderScreen>
   int? _jumpTarget;
   DateTime _wheelLockedUntil = DateTime.fromMillisecondsSinceEpoch(0);
 
-  List<String> get _pages => widget.book.pages;
   bool get _hasNext => _currentPageIndex < _pages.length - 1;
   bool get _hasPrev => _currentPageIndex > 0;
 
@@ -68,15 +77,12 @@ class _BookReaderScreenState extends State<BookReaderScreen>
   void initState() {
     super.initState();
 
-    // Resume where the reader left off; a finished book starts over.
-    final state = AppStateScope.read(context);
-    final last = state.lastPage(widget.book.id);
-    _currentPageIndex = (last == null || last >= _pages.length - 1) ? 0 : last;
-    // Record that the book was opened (after this frame, since notifying
-    // listeners during build isn't allowed).
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _saveProgress();
-    });
+    // Resume where the reader left off; a finished book starts over. The
+    // book is recorded as opened once the first pagination has run.
+    final position = AppStateScope.read(context).positionOf(widget.book.id);
+    _anchor = (position == null || position.end >= _text.length)
+        ? 0
+        : position.start.clamp(0, _text.length);
 
     _flipController = AnimationController(
       vsync: this,
@@ -116,9 +122,42 @@ class _BookReaderScreenState extends State<BookReaderScreen>
     super.dispose();
   }
 
-  void _saveProgress() => AppStateScope.read(
-    context,
-  ).setLastPage(widget.book.id, _currentPageIndex);
+  void _saveProgress() => AppStateScope.read(context).setPosition(
+    widget.book.id,
+    ReadingPosition(_anchor, _pages[_currentPageIndex].end),
+  );
+
+  // ---------------------------------------------------------------------------
+  // Pagination
+  // ---------------------------------------------------------------------------
+
+  /// Re-splits the text into pages when the page area, typography or system
+  /// text scale changes. Runs during layout (it needs the page size), so the
+  /// top bar and nav tray, built earlier in the frame, are refreshed after.
+  void _paginate(Size pageArea, PageTextStyle style, TextScaler textScaler) {
+    final key = (pageArea, style.layoutKey, textScaler);
+    if (key == _paginationKey) return;
+    _paginationKey = key;
+
+    _pages = paginate(
+      text: _text,
+      size: pageTextSize(pageArea),
+      style: style,
+      textScaler: textScaler,
+    );
+    _currentPageIndex = pageIndexFor(_pages, _anchor);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() {});
+      _saveProgress();
+    });
+  }
+
+  InlineSpan? _pageSpan(int index, PageTextStyle style) =>
+      index >= 0 && index < _pages.length
+      ? buildPageSpan(_text, _pages[index], style)
+      : null;
 
   // ---------------------------------------------------------------------------
   // Page turning
@@ -139,6 +178,9 @@ class _BookReaderScreenState extends State<BookReaderScreen>
     if (forward ? !_hasNext : !_hasPrev) return;
 
     final target = to ?? _currentPageIndex + (forward ? 1 : -1);
+    // Remember the destination by offset, not index, in case the text is
+    // re-paginated while the page is turning.
+    final targetStart = _pages[target].start;
     setState(() {
       _isFlippingForward = forward;
       _jumpTarget = to;
@@ -151,7 +193,8 @@ class _BookReaderScreenState extends State<BookReaderScreen>
     if (!mounted) return;
 
     setState(() {
-      _currentPageIndex = target;
+      _anchor = targetStart;
+      _currentPageIndex = pageIndexFor(_pages, _anchor);
       _jumpTarget = null;
     });
     _flipController.value = 0;
@@ -167,7 +210,9 @@ class _BookReaderScreenState extends State<BookReaderScreen>
   Future<void> _openBookmarks() async {
     final page = await showBookmarksSheet(
       context,
-      book: widget.book,
+      bookId: widget.book.id,
+      text: _text,
+      pages: _pages,
       currentPage: _currentPageIndex,
     );
     if (page != null && mounted) _jumpToPage(page);
@@ -263,9 +308,12 @@ class _BookReaderScreenState extends State<BookReaderScreen>
     });
   }
 
-  void _toggleBookmark() => AppStateScope.read(
-    context,
-  ).toggleBookmark(widget.book.id, _currentPageIndex);
+  void _toggleBookmark() {
+    final page = _pages[_currentPageIndex];
+    AppStateScope.read(
+      context,
+    ).toggleBookmark(widget.book.id, page.start, page.end);
+  }
 
   // ---------------------------------------------------------------------------
   // Build
@@ -276,17 +324,15 @@ class _BookReaderScreenState extends State<BookReaderScreen>
     final theme = Theme.of(context);
     final palette = ReaderPalette.of(context);
     final state = AppStateScope.of(context);
-    final isPageBookmarked = state.isBookmarked(
-      widget.book.id,
-      _currentPageIndex,
-    );
-
-    final pageTextStyle = TextStyle(
+    final pageTextStyle = PageTextStyle(
       fontFamily: state.font.family,
       fontSize: state.fontSize,
-      height: state.lineHeight,
-      color: palette.ink,
+      lineHeight: state.lineHeight,
+      ink: palette.ink,
+      dropCapColor: palette.dropCap,
     );
+    bool isBookmarked(PageRange page) =>
+        state.hasBookmarkIn(widget.book.id, page.start, page.end);
 
     return CallbackShortcuts(
       bindings: {
@@ -338,35 +384,21 @@ class _BookReaderScreenState extends State<BookReaderScreen>
                   child: SafeArea(
                     child: Column(
                       children: [
-                        _buildTopBar(theme, palette, isPageBookmarked),
+                        _buildTopBar(
+                          theme,
+                          palette,
+                          isBookmarked(_pages[_currentPageIndex]),
+                        ),
                         Expanded(
-                          child: Listener(
-                            onPointerSignal: _onPointerSignal,
-                            child: GestureDetector(
-                              onHorizontalDragUpdate: _onHorizontalDragUpdate,
-                              onHorizontalDragEnd: _onHorizontalDragEnd,
-                              child: PageFlipWidget(
-                                dragOffset: _dragOffset,
-                                isDragging: _isDragging,
-                                isFlippingForward: _isFlippingForward,
-                                currentPage: _pages[_currentPageIndex],
-                                nextPage:
-                                    _jumpTarget != null && _isFlippingForward
-                                    ? _pages[_jumpTarget!]
-                                    : _hasNext
-                                    ? _pages[_currentPageIndex + 1]
-                                    : '',
-                                previousPage:
-                                    _jumpTarget != null && !_isFlippingForward
-                                    ? _pages[_jumpTarget!]
-                                    : _hasPrev
-                                    ? _pages[_currentPageIndex - 1]
-                                    : '',
-                                flipProgress: _flipController,
-                                isCurrentPageBookmarked: isPageBookmarked,
-                                textStyle: pageTextStyle,
-                              ),
-                            ),
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              _paginate(
+                                constraints.biggest,
+                                pageTextStyle,
+                                MediaQuery.textScalerOf(context),
+                              );
+                              return _buildPage(pageTextStyle, isBookmarked);
+                            },
                           ),
                         ),
                         _buildNavTray(theme, palette),
@@ -377,6 +409,37 @@ class _BookReaderScreenState extends State<BookReaderScreen>
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPage(
+    PageTextStyle style,
+    bool Function(PageRange page) isBookmarked,
+  ) {
+    final jump = _jumpTarget;
+    return Listener(
+      onPointerSignal: _onPointerSignal,
+      child: GestureDetector(
+        onHorizontalDragUpdate: _onHorizontalDragUpdate,
+        onHorizontalDragEnd: _onHorizontalDragEnd,
+        child: PageFlipWidget(
+          dragOffset: _dragOffset,
+          isDragging: _isDragging,
+          isFlippingForward: _isFlippingForward,
+          currentPage: _pageSpan(_currentPageIndex, style)!,
+          // During a jump the page revealed underneath is the destination.
+          nextPage: _pageSpan(
+            jump != null && _isFlippingForward ? jump : _currentPageIndex + 1,
+            style,
+          ),
+          previousPage: _pageSpan(
+            jump != null && !_isFlippingForward ? jump : _currentPageIndex - 1,
+            style,
+          ),
+          flipProgress: _flipController,
+          isCurrentPageBookmarked: isBookmarked(_pages[_currentPageIndex]),
         ),
       ),
     );

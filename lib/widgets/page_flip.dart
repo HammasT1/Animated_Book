@@ -7,6 +7,16 @@ import '../theme/app_theme.dart';
 /// How far (in px) a drag can travel before the preview stops growing.
 const double kMaxDragOffset = 200;
 
+/// Space between the edge of the page area and the text on each side:
+/// outer padding (16) + card margin (4) + text padding (24).
+const double kPageTextInset = 44;
+
+/// The box the text of a page is set in, given the whole page area.
+Size pageTextSize(Size pageArea) => Size(
+  math.max(0, pageArea.width - 2 * kPageTextInset),
+  math.max(0, pageArea.height - 2 * kPageTextInset),
+);
+
 /// Extra tilt (radians) the page picks up at [kMaxDragOffset] while dragging.
 const double kDragTilt = 0.3;
 
@@ -19,18 +29,20 @@ double dragOffsetToFlipProgress(double dragOffset) {
 
 /// Directional 3D page turn: forward flips hinge on the left edge, backward
 /// flips mirror it on the right. Shows paper texture and a bookmark ribbon.
+///
+/// Pages arrive as styled text already cut to fit (see `buildPageSpan`);
+/// a null [nextPage] or [previousPage] means there is none.
 class PageFlipWidget extends StatelessWidget {
   final double dragOffset;
   final bool isDragging;
   final bool isFlippingForward;
-  final String currentPage;
-  final String nextPage;
-  final String previousPage;
+  final InlineSpan currentPage;
+  final InlineSpan? nextPage;
+  final InlineSpan? previousPage;
 
   /// 0 = page flat, 1 = page fully turned away.
   final Animation<double> flipProgress;
   final bool isCurrentPageBookmarked;
-  final TextStyle textStyle;
 
   const PageFlipWidget({
     super.key,
@@ -42,7 +54,6 @@ class PageFlipWidget extends StatelessWidget {
     required this.previousPage,
     required this.flipProgress,
     required this.isCurrentPageBookmarked,
-    required this.textStyle,
   });
 
   @override
@@ -63,8 +74,9 @@ class PageFlipWidget extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           // 1. Underlay page (next or previous, depending on direction).
-          if (underlayPage.isNotEmpty)
+          if (underlayPage != null)
             Card(
+              margin: const EdgeInsets.all(4),
               color: palette.paper,
               elevation: 2,
               clipBehavior: Clip.antiAlias,
@@ -76,11 +88,7 @@ class PageFlipWidget extends StatelessWidget {
                   _PaperTexture(opacity: palette.textureOpacity),
                   Padding(
                     padding: const EdgeInsets.all(24),
-                    child: _PageText(
-                      text: underlayPage,
-                      style: textStyle,
-                      dropCapColor: palette.dropCap,
-                    ),
+                    child: _PageText(text: underlayPage),
                   ),
                 ],
               ),
@@ -110,6 +118,7 @@ class PageFlipWidget extends StatelessWidget {
                   ..rotateY(angle),
                 alignment: hingeAlignment,
                 child: Card(
+                  margin: const EdgeInsets.all(4),
                   color: palette.paper,
                   elevation: 8,
                   shadowColor: Colors.black26,
@@ -167,11 +176,7 @@ class PageFlipWidget extends StatelessWidget {
               );
             },
             // Built once per page, not once per animation frame.
-            child: _PageText(
-              text: currentPage,
-              style: textStyle,
-              dropCapColor: palette.dropCap,
-            ),
+            child: _PageText(text: currentPage),
           ),
         ],
       ),
@@ -199,59 +204,18 @@ class _PaperTexture extends StatelessWidget {
   }
 }
 
-/// Page body with an illuminated drop cap at the start of every paragraph.
+/// Page body. Pagination already sized the text to fit, so the scroll view
+/// is only a safety net (e.g. if a font hasn't finished loading yet).
 class _PageText extends StatelessWidget {
-  const _PageText({
-    required this.text,
-    required this.style,
-    required this.dropCapColor,
-  });
+  const _PageText({required this.text});
 
-  final String text;
-  final TextStyle style;
-  final Color dropCapColor;
+  final InlineSpan text;
 
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
-      child: Text.rich(TextSpan(children: _buildSpans())),
+      child: Text.rich(text),
     );
-  }
-
-  List<InlineSpan> _buildSpans() {
-    final spans = <InlineSpan>[];
-    final paragraphs = text.split('\n\n');
-    final dropCapSize = (style.fontSize ?? 18) * 2.33;
-
-    for (int i = 0; i < paragraphs.length; i++) {
-      final paragraph = paragraphs[i];
-      if (paragraph.trim().isEmpty) continue;
-
-      spans.add(
-        WidgetSpan(
-          alignment: PlaceholderAlignment.middle,
-          child: Padding(
-            padding: const EdgeInsets.only(right: 6, bottom: 2),
-            child: Text(
-              paragraph[0],
-              style: TextStyle(
-                fontFamily: 'Serif',
-                fontSize: dropCapSize,
-                fontWeight: FontWeight.bold,
-                color: dropCapColor,
-                height: 0.9,
-              ),
-            ),
-          ),
-        ),
-      );
-      spans.add(TextSpan(text: paragraph.substring(1), style: style));
-
-      if (i < paragraphs.length - 1) {
-        spans.add(const TextSpan(text: '\n\n'));
-      }
-    }
-    return spans;
   }
 }

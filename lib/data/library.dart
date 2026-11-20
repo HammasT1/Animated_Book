@@ -7,7 +7,7 @@ const List<Book> kLibrary = [
     title: 'Kafka on the Shore',
     author: 'Haruki Murakami',
     coverAsset: 'assets/images/book_cover.jpg',
-    pages: [
+    sections: [
       '''The ancient library stood as a monument to human curiosity and imagination. Its walls were lined with countless volumes, each containing worlds waiting to be explored. The smell of aged paper mixed with leather bindings filled the air, creating an atmosphere of endless possibilities.
 
 Every book was a gateway to another time, another place, another mind. The librarians who maintained this sacred space understood the profound responsibility they held: to preserve knowledge and foster wonder in those who entered.''',
@@ -26,7 +26,7 @@ Someone had loved this book deeply, engaging with it as a conversation partner r
     title: 'The Picture of Dorian Gray',
     author: 'Oscar Wilde',
     coverAsset: 'assets/images/fantasyfiction_book_cover_template.jpg',
-    pages: [
+    sections: [
       '''The studio was filled with the rich odour of roses, and when the light summer wind stirred amidst the trees of the garden, there came through the open door the heavy scent of the lilac, or the more delicate perfume of the pink-flowering thorn.
 
 From the corner of the divan of Persian saddle-bags on which he was lying, smoking, as was his custom, innumerable cigarettes, Lord Henry Wotton could just catch the gleam of the honey-sweet and honey-coloured blossoms of a laburnum, whose tremulous branches seemed hardly able to bear the burden of a beauty so flamelike as theirs.''',
@@ -43,7 +43,7 @@ Lord Henry elevated his eyebrows and looked at him in amazement through the thin
     title: 'The Secret Garden',
     author: 'Frances Hodgson Burnett',
     coverAsset: 'assets/images/book3_cover.jpg',
-    pages: [
+    sections: [
       '''When Mary Lennox was sent to Misselthwaite Manor to live with her uncle, everybody said she was the most disagreeable-looking child ever seen. It was true, too. She had a little thin face and a little thin body, thin light hair and a sour expression.
 
 Her hair was yellow, and her face was yellow because she had been born in India and had always been ill in one way or another. She had not been actually interested in anybody or anything until the day the garden's secret began to unfold itself to her.''',

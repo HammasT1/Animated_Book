@@ -167,7 +167,7 @@ class _BookLibraryScreenState extends State<BookLibraryScreen> {
                         const SizedBox(height: 12),
                         _ProgressSummary(
                           book: activeBook,
-                          lastPage: state.lastPage(activeBook.id),
+                          position: state.positionOf(activeBook.id),
                           onContinue: () => _openBook(_activeBookIndex),
                         ),
                       ],
@@ -186,9 +186,9 @@ class _BookLibraryScreenState extends State<BookLibraryScreen> {
 
   /// 0..1 for a started book, null if never opened.
   double? _progressFor(AppState state, Book book) {
-    final last = state.lastPage(book.id);
-    if (last == null) return null;
-    return (last + 1) / book.pages.length;
+    final position = state.positionOf(book.id);
+    if (position == null) return null;
+    return readFraction(book, position);
   }
 }
 
@@ -318,25 +318,34 @@ class _ShelfCover extends StatelessWidget {
   }
 }
 
-/// "Not started" / "Page 2 of 3 · Continue" / "Finished" under the title.
+/// How far through [book] the reader is, 0..1, counting the page on screen
+/// as read. Pages depend on screen size and typography, so progress is
+/// measured in characters rather than pages.
+double readFraction(Book book, ReadingPosition position) {
+  final length = book.text.length;
+  if (length == 0) return 1;
+  return (position.end / length).clamp(0.0, 1.0);
+}
+
+/// "Start reading" / "Continue · 42%" / "Finished · Read again" under the
+/// title.
 class _ProgressSummary extends StatelessWidget {
   const _ProgressSummary({
     required this.book,
-    required this.lastPage,
+    required this.position,
     required this.onContinue,
   });
 
   final Book book;
-  final int? lastPage;
+  final ReadingPosition? position;
   final VoidCallback onContinue;
 
   @override
   Widget build(BuildContext context) {
     final palette = ReaderPalette.of(context);
-    final total = book.pages.length;
-    final last = lastPage;
+    final position = this.position;
 
-    if (last == null) {
+    if (position == null) {
       return FilledButton.tonalIcon(
         onPressed: onContinue,
         icon: const Icon(Icons.menu_book, size: 18),
@@ -344,7 +353,8 @@ class _ProgressSummary extends StatelessWidget {
       );
     }
 
-    final finished = last >= total - 1;
+    final fraction = readFraction(book, position);
+    final finished = fraction >= 1;
     return Column(
       children: [
         SizedBox(
@@ -352,7 +362,7 @@ class _ProgressSummary extends StatelessWidget {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
-              value: (last + 1) / total,
+              value: fraction,
               minHeight: 4,
               color: palette.dropCap,
               backgroundColor: palette.trayBorder,
@@ -369,7 +379,7 @@ class _ProgressSummary extends StatelessWidget {
           label: Text(
             finished
                 ? 'Finished · Read again'
-                : 'Continue · Page ${last + 1} of $total',
+                : 'Continue · ${(fraction * 100).floor()}%',
           ),
         ),
       ],

@@ -1,15 +1,42 @@
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../data/library.dart';
+import '../models/book.dart';
 import '../theme/app_theme.dart';
 
+/// Where a reader is in a book: the character range of the page on screen.
+///
+/// [start] is where reading resumes (it stays put when the text is
+/// re-paginated); [end] says how far through the book the reader has got.
+@immutable
+class ReadingPosition {
+  const ReadingPosition(this.start, this.end);
+
+  final int start;
+  final int end;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ReadingPosition && other.start == start && other.end == end;
+
+  @override
+  int get hashCode => Object.hash(start, end);
+}
+
 /// Everything the app remembers between launches: paper style, reader
-/// typography, bookmarks and the last page read in each book.
+/// typography, bookmarks and the reading position in each book.
+///
+/// Positions and bookmarks are character offsets into [Book.text], so they
+/// stay on the same words however the text is paginated.
 ///
 /// Every setter writes through to [SharedPreferences] immediately, so state
 /// survives the app being killed at any point.
 class AppState extends ChangeNotifier {
-  AppState(this._prefs) {
+  /// [books] is only used to migrate progress and bookmarks saved by older
+  /// versions, which stored fixed page numbers.
+  AppState(this._prefs, {List<Book> books = kLibrary}) {
+    _migrateLegacyPages(books);
     _load();
   }
 
@@ -26,15 +53,19 @@ class AppState extends ChangeNotifier {
   static const _kFontSize = 'reader.fontSize';
   static const _kLineHeight = 'reader.lineHeight';
   static const _kFont = 'reader.font';
-  static const _kBookmarksPrefix = 'bookmarks.';
-  static const _kProgressPrefix = 'progress.';
+  static const _kBookmarksPrefix = 'marks.';
+  static const _kPositionPrefix = 'position.';
+
+  // Keys used before pagination was dynamic; values were section indices.
+  static const _kLegacyBookmarksPrefix = 'bookmarks.';
+  static const _kLegacyProgressPrefix = 'progress.';
 
   ReaderTheme _readerTheme = ReaderTheme.light;
   double _fontSize = defaultFontSize;
   double _lineHeight = defaultLineHeight;
   ReaderFont _font = ReaderFont.serif;
   final Map<String, Set<int>> _bookmarks = {};
-  final Map<String, int> _lastPage = {};
+  final Map<String, ReadingPosition> _positions = {};
 
   ReaderTheme get readerTheme => _readerTheme;
   bool get isDark => _readerTheme.isDark;
@@ -60,15 +91,59 @@ class AppState extends ChangeNotifier {
 
     for (final key in _prefs.getKeys()) {
       if (key.startsWith(_kBookmarksPrefix)) {
-        final pages = _prefs.getStringList(key) ?? const [];
+        final offsets = _prefs.getStringList(key) ?? const [];
         _bookmarks[key.substring(_kBookmarksPrefix.length)] = {
-          for (final p in pages) ?int.tryParse(p),
+          for (final o in offsets) ?int.tryParse(o),
         };
-      } else if (key.startsWith(_kProgressPrefix)) {
-        final page = _prefs.getInt(key);
-        if (page != null) {
-          _lastPage[key.substring(_kProgressPrefix.length)] = page;
+      } else if (key.startsWith(_kPositionPrefix)) {
+        final value = _prefs.getStringList(key) ?? const [];
+        final start = value.isNotEmpty ? int.tryParse(value[0]) : null;
+        final end = value.length > 1 ? int.tryParse(value[1]) : null;
+        if (start != null && end != null) {
+          _positions[key.substring(_kPositionPrefix.length)] = ReadingPosition(
+            start,
+            end,
+          );
         }
+      }
+    }
+  }
+
+  /// Converts section-index progress and bookmarks from older versions into
+  /// character offsets, then removes the old keys.
+  void _migrateLegacyPages(List<Book> books) {
+    for (final book in books) {
+      final progressKey = '$_kLegacyProgressPrefix${book.id}';
+      final legacyPage = _prefs.getInt(progressKey);
+      if (legacyPage != null) {
+        final i = legacyPage.clamp(0, book.sections.length - 1);
+        final start = book.sectionStart(i);
+        if (!_prefs.containsKey('$_kPositionPrefix${book.id}')) {
+          _prefs.setStringList('$_kPositionPrefix${book.id}', [
+            '$start',
+            '${start + book.sections[i].length}',
+          ]);
+        }
+        _prefs.remove(progressKey);
+      }
+
+      final marksKey = '$_kLegacyBookmarksPrefix${book.id}';
+      final legacyMarks = _prefs.getStringList(marksKey);
+      if (legacyMarks != null) {
+        final offsets = {
+          for (final p in legacyMarks.map(int.tryParse))
+            if (p != null && p >= 0 && p < book.sections.length)
+              book.sectionStart(p),
+          ...?_prefs
+              .getStringList('$_kBookmarksPrefix${book.id}')
+              ?.map(int.tryParse)
+              .whereType<int>(),
+        };
+        _prefs.setStringList(
+          '$_kBookmarksPrefix${book.id}',
+          (offsets.toList()..sort()).map((o) => '$o').toList(),
+        );
+        _prefs.remove(marksKey);
       }
     }
   }
@@ -126,18 +201,36 @@ class AppState extends ChangeNotifier {
   // Bookmarks
   // ---------------------------------------------------------------------------
 
-  bool isBookmarked(String bookId, int page) =>
-      _bookmarks[bookId]?.contains(page) ?? false;
-
+  /// Bookmarked character offsets in a book.
   Set<int> bookmarksFor(String bookId) =>
       Set.unmodifiable(_bookmarks[bookId] ?? const <int>{});
 
-  void toggleBookmark(String bookId, int page) {
-    final pages = _bookmarks.putIfAbsent(bookId, () => <int>{});
-    if (!pages.remove(page)) pages.add(page);
+  /// Whether any bookmark falls inside the character range [start, end).
+  bool hasBookmarkIn(String bookId, int start, int end) =>
+      _bookmarks[bookId]?.any((o) => o >= start && o < end) ?? false;
+
+  /// Bookmarks the page [start, end), or removes every bookmark on it.
+  void toggleBookmark(String bookId, int start, int end) {
+    if (hasBookmarkIn(bookId, start, end)) {
+      removeBookmarksIn(bookId, start, end);
+    } else {
+      _bookmarks.putIfAbsent(bookId, () => <int>{}).add(start);
+      _saveBookmarks(bookId);
+    }
+  }
+
+  void removeBookmarksIn(String bookId, int start, int end) {
+    final offsets = _bookmarks[bookId];
+    if (offsets == null) return;
+    offsets.removeWhere((o) => o >= start && o < end);
+    _saveBookmarks(bookId);
+  }
+
+  void _saveBookmarks(String bookId) {
+    final offsets = _bookmarks[bookId]!.toList()..sort();
     _prefs.setStringList(
       '$_kBookmarksPrefix$bookId',
-      (pages.toList()..sort()).map((p) => '$p').toList(),
+      offsets.map((o) => '$o').toList(),
     );
     notifyListeners();
   }
@@ -146,13 +239,16 @@ class AppState extends ChangeNotifier {
   // Reading progress
   // ---------------------------------------------------------------------------
 
-  /// The page the reader was last on, or null if the book was never opened.
-  int? lastPage(String bookId) => _lastPage[bookId];
+  /// Where the reader is in a book, or null if it was never opened.
+  ReadingPosition? positionOf(String bookId) => _positions[bookId];
 
-  void setLastPage(String bookId, int page) {
-    if (_lastPage[bookId] == page) return;
-    _lastPage[bookId] = page;
-    _prefs.setInt('$_kProgressPrefix$bookId', page);
+  void setPosition(String bookId, ReadingPosition position) {
+    if (_positions[bookId] == position) return;
+    _positions[bookId] = position;
+    _prefs.setStringList('$_kPositionPrefix$bookId', [
+      '${position.start}',
+      '${position.end}',
+    ]);
     notifyListeners();
   }
 }

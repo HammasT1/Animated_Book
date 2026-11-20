@@ -1,31 +1,46 @@
 import 'package:flutter/material.dart';
 
-import '../models/book.dart';
+import '../reading/pagination.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 
-/// Opens the list of saved bookmarks for [book].
+/// Opens the list of saved bookmarks for a book, numbered by its current
+/// [pages].
 ///
 /// Resolves to the page index the reader picked, or null if the sheet was
 /// dismissed. Bookmarks can also be removed from the list; the sheet updates
 /// live because it listens to [AppState].
 Future<int?> showBookmarksSheet(
   BuildContext context, {
-  required Book book,
+  required String bookId,
+  required String text,
+  required List<PageRange> pages,
   required int currentPage,
 }) {
   return showModalBottomSheet<int>(
     context: context,
     showDragHandle: true,
     isScrollControlled: true,
-    builder: (context) => _BookmarksSheet(book: book, currentPage: currentPage),
+    builder: (context) => _BookmarksSheet(
+      bookId: bookId,
+      text: text,
+      pages: pages,
+      currentPage: currentPage,
+    ),
   );
 }
 
 class _BookmarksSheet extends StatelessWidget {
-  const _BookmarksSheet({required this.book, required this.currentPage});
+  const _BookmarksSheet({
+    required this.bookId,
+    required this.text,
+    required this.pages,
+    required this.currentPage,
+  });
 
-  final Book book;
+  final String bookId;
+  final String text;
+  final List<PageRange> pages;
   final int currentPage;
 
   @override
@@ -34,13 +49,12 @@ class _BookmarksSheet extends StatelessWidget {
     final palette = ReaderPalette.of(context);
     final theme = Theme.of(context);
 
-    // Ignore bookmarks that point past the end (e.g. a book got shorter).
-    final pages =
-        state
-            .bookmarksFor(book.id)
-            .where((p) => p >= 0 && p < book.pages.length)
-            .toList()
-          ..sort();
+    // Bookmarks are character offsets; list the pages they fall on now.
+    // Ignore any past the end of the text (e.g. the book got shorter).
+    final marked = {
+      for (final offset in state.bookmarksFor(bookId))
+        if (offset >= 0 && offset < text.length) pageIndexFor(pages, offset),
+    }.toList()..sort();
 
     final labelStyle = theme.textTheme.labelLarge?.copyWith(
       color: palette.muted,
@@ -63,21 +77,22 @@ class _BookmarksSheet extends StatelessWidget {
                 children: [
                   Text('Bookmarks', style: labelStyle),
                   const Spacer(),
-                  if (pages.isNotEmpty)
-                    Text('${pages.length}', style: labelStyle),
+                  if (marked.isNotEmpty)
+                    Text('${marked.length}', style: labelStyle),
                 ],
               ),
             ),
-            if (pages.isEmpty)
+            if (marked.isEmpty)
               _EmptyState(palette: palette)
             else
               Flexible(
                 child: ListView.builder(
                   shrinkWrap: true,
                   padding: const EdgeInsets.only(bottom: 12),
-                  itemCount: pages.length,
+                  itemCount: marked.length,
                   itemBuilder: (context, i) {
-                    final page = pages[i];
+                    final page = marked[i];
+                    final range = pages[page];
                     final isCurrent = page == currentPage;
                     return ListTile(
                       key: ValueKey('bookmark-$page'),
@@ -96,7 +111,7 @@ class _BookmarksSheet extends StatelessWidget {
                         ),
                       ),
                       subtitle: Text(
-                        _snippet(book.pages[page]),
+                        _snippet(text, range),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -107,7 +122,11 @@ class _BookmarksSheet extends StatelessWidget {
                       trailing: IconButton(
                         tooltip: 'Remove bookmark',
                         icon: Icon(Icons.close, color: palette.muted),
-                        onPressed: () => state.toggleBookmark(book.id, page),
+                        onPressed: () => state.removeBookmarksIn(
+                          bookId,
+                          range.start,
+                          range.end,
+                        ),
                       ),
                       onTap: () => Navigator.pop(context, page),
                     );
@@ -120,13 +139,13 @@ class _BookmarksSheet extends StatelessWidget {
     );
   }
 
-  /// First non-empty paragraph of a page, collapsed to a single line.
-  static String _snippet(String page) {
-    final paragraph = page
-        .split('\n\n')
-        .map((p) => p.trim())
-        .firstWhere((p) => p.isNotEmpty, orElse: () => '');
-    return paragraph.replaceAll(RegExp(r'\s+'), ' ');
+  /// The opening words of a page, collapsed to a single line.
+  static String _snippet(String text, PageRange page) {
+    final end = (page.start + 200).clamp(page.start, page.end);
+    return text
+        .substring(page.start, end)
+        .trim()
+        .replaceAll(RegExp(r'\s+'), ' ');
   }
 }
 
