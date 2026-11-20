@@ -440,6 +440,7 @@ class _BookReaderScreenState extends State<BookReaderScreen>
           ),
           flipProgress: _flipController,
           isCurrentPageBookmarked: isBookmarked(_pages[_currentPageIndex]),
+          turnStyle: AppStateScope.of(context).turnStyle,
         ),
       ),
     );

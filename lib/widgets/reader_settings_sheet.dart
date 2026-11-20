@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 
-/// Opens the "Aa" panel: paper style, typeface, text size and line spacing.
+/// Opens the "Aa" panel: paper style, page turn, typeface, text size and
+/// line spacing.
 /// Every change applies live to the page behind the sheet and is saved.
 Future<void> showReaderSettingsSheet(BuildContext context) {
   return showModalBottomSheet<void>(
@@ -48,6 +49,23 @@ class _ReaderSettingsSheet extends StatelessWidget {
               selected: {state.readerTheme},
               showSelectedIcon: false,
               onSelectionChanged: (s) => state.setReaderTheme(s.first),
+            ),
+            const SizedBox(height: 20),
+
+            Text('Page turn', style: labelStyle),
+            const SizedBox(height: 8),
+            SegmentedButton<PageTurnStyle>(
+              segments: [
+                for (final t in PageTurnStyle.values)
+                  ButtonSegment(
+                    value: t,
+                    label: Text(t.label),
+                    icon: Icon(t.icon, size: 18),
+                  ),
+              ],
+              selected: {state.turnStyle},
+              showSelectedIcon: false,
+              onSelectionChanged: (s) => state.setTurnStyle(s.first),
             ),
             const SizedBox(height: 20),
 

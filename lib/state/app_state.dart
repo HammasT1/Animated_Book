@@ -53,6 +53,7 @@ class AppState extends ChangeNotifier {
   static const _kFontSize = 'reader.fontSize';
   static const _kLineHeight = 'reader.lineHeight';
   static const _kFont = 'reader.font';
+  static const _kTurnStyle = 'reader.turnStyle';
   static const _kBookmarksPrefix = 'marks.';
   static const _kPositionPrefix = 'position.';
 
@@ -64,6 +65,7 @@ class AppState extends ChangeNotifier {
   double _fontSize = defaultFontSize;
   double _lineHeight = defaultLineHeight;
   ReaderFont _font = ReaderFont.serif;
+  PageTurnStyle _turnStyle = PageTurnStyle.curl;
   final Map<String, Set<int>> _bookmarks = {};
   final Map<String, ReadingPosition> _positions = {};
 
@@ -72,6 +74,7 @@ class AppState extends ChangeNotifier {
   double get fontSize => _fontSize;
   double get lineHeight => _lineHeight;
   ReaderFont get font => _font;
+  PageTurnStyle get turnStyle => _turnStyle;
 
   void _load() {
     _readerTheme =
@@ -88,6 +91,9 @@ class AppState extends ChangeNotifier {
     _font =
         ReaderFont.values.asNameMap()[_prefs.getString(_kFont)] ??
         ReaderFont.serif;
+    _turnStyle =
+        PageTurnStyle.values.asNameMap()[_prefs.getString(_kTurnStyle)] ??
+        PageTurnStyle.curl;
 
     for (final key in _prefs.getKeys()) {
       if (key.startsWith(_kBookmarksPrefix)) {
@@ -183,6 +189,13 @@ class AppState extends ChangeNotifier {
     if (font == _font) return;
     _font = font;
     _prefs.setString(_kFont, font.name);
+    notifyListeners();
+  }
+
+  void setTurnStyle(PageTurnStyle style) {
+    if (style == _turnStyle) return;
+    _turnStyle = style;
+    _prefs.setString(_kTurnStyle, style.name);
     notifyListeners();
   }
 

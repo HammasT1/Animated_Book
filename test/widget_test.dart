@@ -2,6 +2,7 @@ import 'package:animated_book/data/library.dart';
 import 'package:animated_book/main.dart';
 import 'package:animated_book/state/app_state.dart';
 import 'package:animated_book/theme/app_theme.dart';
+import 'package:animated_book/widgets/page_curl.dart';
 import 'package:animated_book/widgets/page_flip.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -228,6 +229,56 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Page $total'), findsNothing);
       expect(state.bookmarksFor(firstBook.id), {0});
+    });
+  });
+
+  group('Page turn', () {
+    final curlPainter = find.byWidgetPredicate(
+      (w) => w is CustomPaint && w.painter is PageCurlPainter,
+    );
+
+    Future<void> startTurn(WidgetTester tester) async {
+      await tester.tap(find.byTooltip('Next page'));
+      await tester.pump(); // the animation clock starts on this frame
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+
+    testWidgets('curls the page by default', (tester) async {
+      final state = await _freshState();
+      expect(state.turnStyle, PageTurnStyle.curl);
+      await tester.pumpWidget(AnimatedBookApp(state: state));
+      await _openFirstBook(tester);
+
+      expect(curlPainter, findsNothing);
+      await startTurn(tester);
+      expect(curlPainter, findsOneWidget);
+
+      await tester.pumpAndSettle();
+      expect(curlPainter, findsNothing);
+      expect(_pageInfo(tester).$1, 2);
+    });
+
+    testWidgets('can be switched to the flip in reading settings', (
+      tester,
+    ) async {
+      final state = await _freshState();
+      await tester.pumpWidget(AnimatedBookApp(state: state));
+      await _openFirstBook(tester);
+
+      await tester.tap(find.byTooltip('Reading settings'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Flip'));
+      await tester.pumpAndSettle();
+      expect(state.turnStyle, PageTurnStyle.flip);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('reader.turnStyle'), 'flip');
+
+      await tester.tapAt(const Offset(10, 10)); // close the sheet
+      await tester.pumpAndSettle();
+      await startTurn(tester);
+      expect(curlPainter, findsNothing);
+      await tester.pumpAndSettle();
+      expect(_pageInfo(tester).$1, 2);
     });
   });
 

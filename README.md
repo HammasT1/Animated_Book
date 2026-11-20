@@ -102,7 +102,8 @@ Turn pages from the keyboard, bookmark with <kbd>B</kbd>, close with <kbd>Esc</k
     <td width="50%" valign="top">
 
 ### 🎞️ Motion
-- **3D page flip** built on `Matrix4` perspective transforms
+- **Paper-like page curl**: the page bends around a cylinder, shows its translucent back, and casts shadows along the fold and onto the page beneath
+- **3D page flip** built on `Matrix4` perspective transforms, switchable in settings
 - **Drag-to-flip** with a live preview that tracks your swipe
 - **Velocity-aware flicks**: fast swipes turn, fast reverse swipes cancel
 - **Seamless hand-off**: the release continues from the drag angle
@@ -128,7 +129,7 @@ Turn pages from the keyboard, bookmark with <kbd>B</kbd>, close with <kbd>Esc</k
 
 ### 🎨 Design
 - **Light · Sepia · Dark** paper, cross-faded via `ThemeExtension`
-- **Reader settings**: text size 14–28, line spacing 1.4–2.2
+- **Reader settings**: page turn (curl or flip), text size 14–28, line spacing 1.4–2.2
 - **Serif or Sans** typeface, both bundled with the app
 - Textured paper, layered shadows and gradients
 
@@ -216,16 +217,30 @@ flowchart LR
     M --> L["📚 BookLibraryScreen<br/>PageView + progress"]
     L -- "tap cover · Hero" --> R["📖 BookReaderScreen"]
     R --> G["📐 paginate()<br/>TextPainter line metrics"]
-    R --> F["🎞️ PageFlipWidget<br/>Matrix4 3D hinge"]
+    R --> F["🎞️ PageFlipWidget<br/>curl or 3D flip"]
+    F --> C["📜 PageCurlPainter<br/>snapshot bent on a cylinder"]
     R --> T["Aa ReaderSettingsSheet"]
     R -. "position · bookmark offsets" .-> S
     T -. "theme · size · font" .-> S
 
     classDef leather fill:#6B4423,stroke:#CBB69B,color:#FAF8F3
     classDef paper fill:#FAF8F3,stroke:#8B7355,color:#2C2420
-    class L,R,F,G leather
+    class L,R,F,G,C leather
     class P,S,Q,M,T paper
 ```
+
+<details>
+<summary><b>📜 How the page curl works</b></summary>
+<br/>
+
+1. After any frame in which the page changes, the flat page is captured from its `RepaintBoundary` with `toImageSync()`, at full device resolution.
+2. While the page turns, the live page is hidden and `PageCurlPainter` redraws the snapshot in thin vertical strips with `drawImageRect`.
+3. Each strip is placed by `CurlGeometry`: the free edge of the paper wraps around an upright cylinder whose base (the fold) slides across the page as the turn progresses. Past the top of the cylinder the paper has folded over and lies flat on top.
+4. Strips are shaded by how far they face away from the reader. Strips showing the back get a paper-coloured wash, so the page's own text shows through faintly, mirrored, like real paper.
+5. Gradient shadows fall onto the uncovered page beneath, along the fold, and where the folded flap meets the page.
+6. The same drag, flick and release logic drives both the curl and the flip, so the curl also continues from wherever your finger let go.
+
+</details>
 
 <details>
 <summary><b>🔍 How the page flip works</b></summary>
@@ -266,7 +281,7 @@ Flutter's `PointerSignalResolver` gives a scroll event to the **first** widget t
 <summary><b>🧰 Flutter APIs used</b></summary>
 <br/>
 
-`AnimationController` · `Tween` · `CurvedAnimation` · `Interval` · `AnimatedBuilder` · `Transform` · `Matrix4` · `Hero` · `PageView.builder` · `GestureDetector` · `Listener` · `PointerSignalResolver` · `CallbackShortcuts` · `Focus` · `ChangeNotifier` · `InheritedNotifier` · `ListenableBuilder` · `ThemeExtension` · `SegmentedButton` · `Slider` · `showModalBottomSheet` · `Text.rich` · `TextPainter` · `LayoutBuilder` · `ColorScheme.fromSeed` · `shared_preferences`
+`AnimationController` · `Tween` · `CurvedAnimation` · `Interval` · `AnimatedBuilder` · `Transform` · `Matrix4` · `Hero` · `PageView.builder` · `GestureDetector` · `Listener` · `PointerSignalResolver` · `CallbackShortcuts` · `Focus` · `ChangeNotifier` · `InheritedNotifier` · `ListenableBuilder` · `ThemeExtension` · `SegmentedButton` · `Slider` · `showModalBottomSheet` · `Text.rich` · `TextPainter` · `LayoutBuilder` · `RepaintBoundary.toImageSync` · `CustomPainter` · `ColorScheme.fromSeed` · `shared_preferences`
 
 </details>
 
@@ -353,7 +368,7 @@ Animated_Book/
 - [x] Keyboard & mouse controls
 - [x] Pages re-flow to fit the screen and your typography
 - [ ] Two-page spread in landscape and on desktop
-- [ ] Page-curl effect with a shadow along the fold
+- [x] Page-curl effect with a shadow along the fold
 - [x] Bookmarks list with jump-to-page
 - [ ] Load real books from files (`.txt` / `.epub`)
 - [ ] Highlights and margin notes

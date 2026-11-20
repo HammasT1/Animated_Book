@@ -22,6 +22,19 @@ enum ReaderFont {
   final String family;
 }
 
+/// How a page leaves when it is turned.
+enum PageTurnStyle {
+  /// The free edge bends around a cylinder and folds over, like paper.
+  curl('Curl', Icons.auto_stories),
+
+  /// The whole page swings around its hinge like a stiff card.
+  flip('Flip', Icons.flip);
+
+  const PageTurnStyle(this.label, this.icon);
+  final String label;
+  final IconData icon;
+}
+
 /// App-specific colours that don't map cleanly onto a Material ColorScheme.
 ///
 /// Registered as a [ThemeExtension] so switching between light, sepia and
