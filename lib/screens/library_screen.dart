@@ -1,18 +1,20 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../data/library.dart';
+import '../data/library_store.dart';
+import '../import/book_import.dart';
 import '../models/book.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
+import '../widgets/book_cover.dart';
 import '../widgets/theme_toggle_button.dart';
 import 'reader_screen.dart';
 
-/// Swipeable shelf of covers with per-book reading progress.
+/// Swipeable shelf of covers with per-book reading progress, where the
+/// reader can also add their own `.txt` and `.epub` books.
 class BookLibraryScreen extends StatefulWidget {
-  const BookLibraryScreen({super.key, this.books = kLibrary});
-
-  final List<Book> books;
+  const BookLibraryScreen({super.key});
 
   @override
   State<BookLibraryScreen> createState() => _BookLibraryScreenState();
@@ -21,6 +23,9 @@ class BookLibraryScreen extends StatefulWidget {
 class _BookLibraryScreenState extends State<BookLibraryScreen> {
   late final PageController _shelfController;
   int _activeBookIndex = 0;
+  bool _importing = false;
+
+  List<Book> get _books => LibraryScope.read(context).books;
 
   @override
   void initState() {
@@ -43,7 +48,7 @@ class _BookLibraryScreenState extends State<BookLibraryScreen> {
         reverseTransitionDuration: const Duration(milliseconds: 400),
         pageBuilder: (context, animation, secondaryAnimation) {
           return BookReaderScreen(
-            book: widget.books[bookIndex],
+            book: _books[bookIndex],
             heroTag: 'book_cover_$bookIndex',
           );
         },
@@ -60,13 +65,112 @@ class _BookLibraryScreenState extends State<BookLibraryScreen> {
   }
 
   void _moveShelf(int delta) {
-    final target = (_activeBookIndex + delta).clamp(0, widget.books.length - 1);
-    if (target == _activeBookIndex) return;
+    _showBook((_activeBookIndex + delta).clamp(0, _books.length - 1));
+  }
+
+  void _showBook(int index) {
+    if (index == _activeBookIndex || !_shelfController.hasClients) return;
     _shelfController.animateToPage(
-      target,
+      index,
       duration: const Duration(milliseconds: 350),
       curve: Curves.easeOutCubic,
     );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Adding and removing books
+  // ---------------------------------------------------------------------------
+
+  void _toast(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// Lets the reader pick a `.txt` or `.epub` file and puts it on the shelf.
+  Future<void> _addBook() async {
+    if (_importing) return;
+    final PlatformFile? file;
+    try {
+      file = await FilePicker.pickFile(
+        dialogTitle: 'Add a book',
+        type: FileType.custom,
+        allowedExtensions: kImportExtensions,
+      );
+    } catch (e) {
+      _toast("Couldn't open the file picker.");
+      return;
+    }
+    if (file == null || !mounted) return;
+    final name = file.name;
+
+    setState(() => _importing = true);
+    try {
+      final bytes = await file.readAsBytes();
+      if (!mounted) return;
+      final (book, alreadyThere) = await LibraryScope.read(
+        context,
+      ).importFile(name, bytes);
+      if (!mounted) return;
+      _toast(
+        alreadyThere
+            ? '"${book.title}" is already on your shelf'
+            : 'Added "${book.title}"',
+      );
+      // Slide the shelf over to the book once it's been laid out.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _showBook(_books.indexWhere((b) => b.id == book.id));
+      });
+    } on BookImportException catch (e) {
+      if (mounted) _toast('Couldn\'t add "$name": $e.');
+    } catch (e) {
+      if (mounted) _toast('Couldn\'t add "$name".');
+    } finally {
+      if (mounted) setState(() => _importing = false);
+    }
+  }
+
+  /// Asks, then takes an imported book off the shelf along with its
+  /// reading position and bookmarks.
+  Future<void> _removeBook(Book book) async {
+    if (!book.isImported) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Remove book?'),
+        content: Text(
+          '"${book.title}" will be removed from your library, along with '
+          'your place in it and its bookmarks.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final library = LibraryScope.read(context);
+    final state = AppStateScope.read(context);
+    try {
+      await library.remove(book.id);
+    } catch (e) {
+      if (mounted) _toast('Couldn\'t remove "${book.title}".');
+      return;
+    }
+    state.forgetBook(book.id);
+    if (!mounted) return;
+    setState(() {
+      _activeBookIndex = _activeBookIndex.clamp(0, _books.length - 1);
+    });
+    _toast('Removed "${book.title}"');
   }
 
   @override
@@ -75,7 +179,9 @@ class _BookLibraryScreenState extends State<BookLibraryScreen> {
     final theme = Theme.of(context);
     final palette = ReaderPalette.of(context);
     final state = AppStateScope.of(context);
-    final activeBook = widget.books[_activeBookIndex];
+    final books = LibraryScope.of(context).books;
+    if (_activeBookIndex >= books.length) _activeBookIndex = books.length - 1;
+    final activeBook = books[_activeBookIndex];
 
     return CallbackShortcuts(
       bindings: {
@@ -87,6 +193,7 @@ class _BookLibraryScreenState extends State<BookLibraryScreen> {
             _openBook(_activeBookIndex),
         const SingleActivator(LogicalKeyboardKey.space): () =>
             _openBook(_activeBookIndex),
+        const SingleActivator(LogicalKeyboardKey.keyO, control: true): _addBook,
       },
       child: Focus(
         autofocus: true,
@@ -95,7 +202,25 @@ class _BookLibraryScreenState extends State<BookLibraryScreen> {
           appBar: AppBar(
             backgroundColor: Colors.transparent,
             elevation: 0,
-            actions: const [ThemeToggleButton()],
+            actions: [
+              _importing
+                  ? const Padding(
+                      padding: EdgeInsets.all(14),
+                      child: SizedBox.square(
+                        dimension: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : IconButton(
+                      tooltip: 'Add a book (.txt or .epub)',
+                      onPressed: _addBook,
+                      icon: Icon(
+                        Icons.library_add_outlined,
+                        color: palette.icon,
+                      ),
+                    ),
+              const ThemeToggleButton(),
+            ],
           ),
           body: SafeArea(
             child: SingleChildScrollView(
@@ -124,11 +249,11 @@ class _BookLibraryScreenState extends State<BookLibraryScreen> {
                     height: screenSize.height * 0.68,
                     child: PageView.builder(
                       controller: _shelfController,
-                      itemCount: widget.books.length,
+                      itemCount: books.length,
                       onPageChanged: (index) =>
                           setState(() => _activeBookIndex = index),
                       itemBuilder: (context, index) {
-                        final book = widget.books[index];
+                        final book = books[index];
                         return _ShelfCover(
                           book: book,
                           heroTag: 'book_cover_$index',
@@ -137,6 +262,9 @@ class _BookLibraryScreenState extends State<BookLibraryScreen> {
                           width: screenSize.width * 0.86,
                           height: screenSize.height * 0.64,
                           onTap: () => _openBook(index),
+                          onLongPress: book.isImported
+                              ? () => _removeBook(book)
+                              : null,
                         );
                       },
                     ),
@@ -170,6 +298,15 @@ class _BookLibraryScreenState extends State<BookLibraryScreen> {
                           position: state.positionOf(activeBook.id),
                           onContinue: () => _openBook(_activeBookIndex),
                         ),
+                        if (activeBook.isImported)
+                          TextButton.icon(
+                            onPressed: () => _removeBook(activeBook),
+                            icon: const Icon(Icons.delete_outline, size: 18),
+                            label: const Text('Remove from library'),
+                            style: TextButton.styleFrom(
+                              foregroundColor: palette.muted,
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -201,6 +338,7 @@ class _ShelfCover extends StatelessWidget {
     required this.width,
     required this.height,
     required this.onTap,
+    this.onLongPress,
   });
 
   final Book book;
@@ -210,6 +348,7 @@ class _ShelfCover extends StatelessWidget {
   final double width;
   final double height;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -219,6 +358,7 @@ class _ShelfCover extends StatelessWidget {
       curve: Curves.easeOutCubic,
       child: GestureDetector(
         onTap: onTap,
+        onLongPress: onLongPress,
         child: Center(
           child: Container(
             width: width,
@@ -247,21 +387,7 @@ class _ShelfCover extends StatelessWidget {
                       fit: StackFit.expand,
                       children: [
                         Container(color: const Color(0xFF2C2420)),
-                        Image.asset(
-                          book.coverAsset,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
-                              Container(
-                                color: const Color(0xFF5D4037),
-                                child: const Center(
-                                  child: Icon(
-                                    Icons.book,
-                                    size: 48,
-                                    color: Colors.white54,
-                                  ),
-                                ),
-                              ),
-                        ),
+                        BookCover(book: book),
                       ],
                     ),
                   ),

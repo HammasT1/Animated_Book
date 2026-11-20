@@ -1,4 +1,5 @@
 import 'package:animated_book/data/library.dart';
+import 'package:animated_book/reading/book_pagination.dart';
 import 'package:animated_book/reading/pagination.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -86,10 +87,23 @@ void main() {
     expect(hasLeadingDropCap(carried), isFalse);
   });
 
-  test('empty text gives one empty page', () {
-    expect(paginate(text: '  \n', size: size, style: _style(18)), [
-      const PageRange(0, 0),
-    ]);
+  test('a range of only whitespace has no pages', () {
+    expect(paginate(text: '  \n', size: size, style: _style(18)), isEmpty);
+  });
+
+  test('a range paginates only its own text', () {
+    final style = _style(18);
+    const start = 200;
+    final end = text.length ~/ 2;
+    final pages = paginate(
+      text: text,
+      size: size,
+      style: style,
+      start: start,
+      end: end,
+    );
+    expect(pages.first.start, greaterThanOrEqualTo(start));
+    expect(pages.last.end, lessThanOrEqualTo(end));
   });
 
   test('pageIndexFor finds the page holding an offset', () {
@@ -99,5 +113,98 @@ void main() {
     expect(pageIndexFor(pages, 12), 1);
     expect(pageIndexFor(pages, 29), 2);
     expect(pageIndexFor(pages, 99), 2);
+  });
+
+  group('BookPagination', () {
+    // Three chapters; the middle one is long enough for several pages.
+    final chapters = [
+      kLibrary[0].text,
+      kLibrary.map((b) => b.text).join('\n\n'),
+      kLibrary[2].text,
+    ];
+    final bookText = chapters.join('\n\n');
+    final starts = <int>[];
+    var offset = 0;
+    for (final c in chapters) {
+      starts.add(offset);
+      offset += c.length + 2;
+    }
+
+    BookPagination build({int eagerLimit = 0}) => BookPagination(
+      text: bookText,
+      chapterStarts: starts,
+      size: size,
+      style: _style(18),
+      eagerLimit: eagerLimit,
+    );
+
+    List<PageRange> walk(BookPagination p) {
+      final pages = [p.pageAt(0)];
+      for (var next = p.after(pages.last); next != null;) {
+        pages.add(next);
+        next = p.after(next);
+      }
+      return pages;
+    }
+
+    test('every chapter starts on a new page', () {
+      final pages = walk(build());
+      for (final start in starts) {
+        expect(pages.any((p) => p.start == start), isTrue, reason: '$start');
+      }
+      for (final page in pages) {
+        final chapterEnds = starts.skip(1).map((s) => s - 2);
+        expect(
+          chapterEnds.any((e) => page.start < e && page.end > e + 2),
+          isFalse,
+          reason: '$page spans a chapter break',
+        );
+      }
+    });
+
+    test('pages can be walked forwards and backwards', () {
+      final p = build();
+      final forward = walk(p);
+      final backward = [forward.last];
+      for (var prev = p.before(backward.last); prev != null;) {
+        backward.add(prev);
+        prev = p.before(prev);
+      }
+      expect(backward.reversed.toList(), forward);
+    });
+
+    test('is lazy: only visited chapters are paginated up front', () {
+      final p = build();
+      expect(p.isComplete, isFalse);
+      expect(p.pageCount, isNull);
+
+      final last = p.pageAt(bookText.length - 1);
+      expect(last.end, bookText.length);
+      // Page numbers need every chapter before it.
+      expect(p.indexOf(last), isNull);
+
+      while (p.step()) {}
+      expect(p.isComplete, isTrue);
+      expect(p.indexOf(last), p.pageCount! - 1);
+      expect(p.pageCount, walk(p).length);
+    });
+
+    test('short books are paginated straight away', () {
+      final p = build(eagerLimit: 1 << 30);
+      expect(p.isComplete, isTrue);
+      expect(p.indexOf(p.pageAt(0)), 0);
+    });
+
+    test('an empty book still has one (blank) page', () {
+      final p = BookPagination(
+        text: '',
+        chapterStarts: const [0],
+        size: size,
+        style: _style(18),
+      );
+      expect(p.pageAt(0), const PageRange(0, 0));
+      expect(p.after(p.pageAt(0)), isNull);
+      expect(p.pageCount, 1);
+    });
   });
 }

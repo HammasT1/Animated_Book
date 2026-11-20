@@ -1,21 +1,22 @@
 import 'package:flutter/material.dart';
 
+import '../reading/book_pagination.dart';
 import '../reading/pagination.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 
 /// Opens the list of saved bookmarks for a book, numbered by its current
-/// [pages].
+/// [pagination].
 ///
-/// Resolves to the page index the reader picked, or null if the sheet was
-/// dismissed. Bookmarks can also be removed from the list; the sheet updates
-/// live because it listens to [AppState].
+/// Resolves to the character offset of the page the reader picked, or null
+/// if the sheet was dismissed. Bookmarks can also be removed from the list;
+/// the sheet updates live because it listens to [AppState].
 Future<int?> showBookmarksSheet(
   BuildContext context, {
   required String bookId,
   required String text,
-  required List<PageRange> pages,
-  required int currentPage,
+  required BookPagination pagination,
+  required PageRange currentPage,
 }) {
   return showModalBottomSheet<int>(
     context: context,
@@ -24,7 +25,7 @@ Future<int?> showBookmarksSheet(
     builder: (context) => _BookmarksSheet(
       bookId: bookId,
       text: text,
-      pages: pages,
+      pagination: pagination,
       currentPage: currentPage,
     ),
   );
@@ -34,14 +35,22 @@ class _BookmarksSheet extends StatelessWidget {
   const _BookmarksSheet({
     required this.bookId,
     required this.text,
-    required this.pages,
+    required this.pagination,
     required this.currentPage,
   });
 
   final String bookId;
   final String text;
-  final List<PageRange> pages;
-  final int currentPage;
+  final BookPagination pagination;
+  final PageRange currentPage;
+
+  /// "Page 12", or how far through the book while page numbers are still
+  /// being worked out.
+  String _label(PageRange page) {
+    final index = pagination.indexOf(page);
+    if (index != null && pagination.isComplete) return 'Page ${index + 1}';
+    return '${text.isEmpty ? 100 : page.end * 100 ~/ text.length}% through';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,8 +62,8 @@ class _BookmarksSheet extends StatelessWidget {
     // Ignore any past the end of the text (e.g. the book got shorter).
     final marked = {
       for (final offset in state.bookmarksFor(bookId))
-        if (offset >= 0 && offset < text.length) pageIndexFor(pages, offset),
-    }.toList()..sort();
+        if (offset >= 0 && offset < text.length) pagination.pageAt(offset),
+    }.toList()..sort((a, b) => a.start.compareTo(b.start));
 
     final labelStyle = theme.textTheme.labelLarge?.copyWith(
       color: palette.muted,
@@ -91,11 +100,10 @@ class _BookmarksSheet extends StatelessWidget {
                   padding: const EdgeInsets.only(bottom: 12),
                   itemCount: marked.length,
                   itemBuilder: (context, i) {
-                    final page = marked[i];
-                    final range = pages[page];
-                    final isCurrent = page == currentPage;
+                    final range = marked[i];
+                    final isCurrent = range == currentPage;
                     return ListTile(
-                      key: ValueKey('bookmark-$page'),
+                      key: ValueKey('bookmark-${range.start}'),
                       contentPadding: const EdgeInsets.only(left: 20, right: 8),
                       leading: Icon(
                         Icons.bookmark,
@@ -103,8 +111,8 @@ class _BookmarksSheet extends StatelessWidget {
                       ),
                       title: Text(
                         isCurrent
-                            ? 'Page ${page + 1} · You are here'
-                            : 'Page ${page + 1}',
+                            ? '${_label(range)} · You are here'
+                            : _label(range),
                         style: theme.textTheme.titleSmall?.copyWith(
                           color: palette.ink,
                           fontWeight: FontWeight.w600,
@@ -128,7 +136,7 @@ class _BookmarksSheet extends StatelessWidget {
                           range.end,
                         ),
                       ),
-                      onTap: () => Navigator.pop(context, page),
+                      onTap: () => Navigator.pop(context, range.start),
                     );
                   },
                 ),

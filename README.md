@@ -115,6 +115,7 @@ Turn pages from the keyboard, bookmark with <kbd>B</kbd>, close with <kbd>Esc</k
 
 ### 📚 Reading
 - **Swipeable library** of book covers via `PageView`
+- **Add your own books** from `.txt` or `.epub` files, with the title, author and cover read from the file (or a generated leather cover)
 - **Continue reading** with progress on every cover
 - **Per-page bookmarks** with a ribbon on the page
 - **Bookmarks list** with a preview of each page and one-flip jump-to-page
@@ -137,6 +138,7 @@ Turn pages from the keyboard, bookmark with <kbd>B</kbd>, close with <kbd>Esc</k
     <td width="50%" valign="top">
 
 ### 💾 Remembers everything
+- Your **imported books**, kept on the device
 - Last page read in **every book**
 - **Bookmarks**, paper style and typography
 - Written through to `shared_preferences` instantly
@@ -182,6 +184,7 @@ Turn pages from the keyboard, bookmark with <kbd>B</kbd>, close with <kbd>Esc</k
 | 📖 Reader | 🖱️ Scroll wheel | Turn the page |
 | 📚 Library | <kbd>←</kbd> · <kbd>→</kbd> | Browse books |
 | 📚 Library | <kbd>Enter</kbd> · <kbd>Space</kbd> | Open the selected book |
+| 📚 Library | <kbd>Ctrl</kbd>+<kbd>O</kbd> | Add a book (`.txt` / `.epub`) |
 
 </div>
 
@@ -216,7 +219,8 @@ flowchart LR
     Q --> M["🎨 MaterialApp<br/>ThemeExtension palette"]
     M --> L["📚 BookLibraryScreen<br/>PageView + progress"]
     L -- "tap cover · Hero" --> R["📖 BookReaderScreen"]
-    R --> G["📐 paginate()<br/>TextPainter line metrics"]
+    B["📥 LibraryStore<br/>bundled + imported"] --> L
+    R --> G["📐 BookPagination<br/>chapter by chapter"]
     R --> F["🎞️ PageFlipWidget<br/>curl or 3D flip"]
     F --> C["📜 PageCurlPainter<br/>snapshot bent on a cylinder"]
     R --> T["Aa ReaderSettingsSheet"]
@@ -226,8 +230,21 @@ flowchart LR
     classDef leather fill:#6B4423,stroke:#CBB69B,color:#FAF8F3
     classDef paper fill:#FAF8F3,stroke:#8B7355,color:#2C2420
     class L,R,F,G,C leather
-    class P,S,Q,M,T paper
+    class P,S,Q,M,T,B paper
 ```
+
+<details>
+<summary><b>📥 How books are imported</b></summary>
+<br/>
+
+1. Tap the **add** button in the library (or press <kbd>Ctrl</kbd>+<kbd>O</kbd>) and pick a `.txt` or `.epub` file. It's read in a background isolate, so a big book doesn't freeze the shelf.
+2. **Text files** are decoded as UTF-8 (falling back to Latin-1). Project Gutenberg licence headers and footers are removed, and the title and author come from the header. Hard-wrapped lines are joined back into paragraphs, while short lines such as verse keep their breaks. Headings like "CHAPTER IV" start new chapters.
+3. **EPUBs** are unzipped with `archive`. `container.xml` and the package file (read with `xml`) give the title, author, cover image and the chapters in spine order. Each chapter's HTML becomes plain paragraphs. DRM-protected books are rejected with a clear message.
+4. Very long chapters are split at a paragraph so each stays quick to lay out.
+5. Books are saved as JSON (plus the cover) in the app's private folder on Android and desktop, or in browser storage on the web. A book imported twice is stored once, and keeps your place.
+6. Imported books can be removed with **Remove from library**, or by long-pressing the cover. Their reading position and bookmarks are removed too.
+
+</details>
 
 <details>
 <summary><b>📜 How the page curl works</b></summary>
@@ -260,9 +277,9 @@ flowchart LR
 <summary><b>📐 How pages are cut to fit</b></summary>
 <br/>
 
-1. Each book is one continuous text. When the reader knows its page size (from a `LayoutBuilder`), `paginate()` lays the text out with a `TextPainter` in exactly the style the page will use.
-2. `computeLineMetrics()` finds the last whole line that fits the page height, and `getLineBoundary()` turns it into a character offset. That offset ends the page, so pages break between words or after a hyphen.
-3. Only about one page of text is laid out at a time, so the cost grows with the length of the book, not with the size of each layout.
+1. Each book is one continuous text. When the reader knows its page size (from a `LayoutBuilder`), `paginate()` lays the text out as a `ui.Paragraph`, built exactly as `Text.rich` builds it, so lines break in the same places as on screen.
+2. About 12,000 characters are laid out at a time and many pages are cut from each layout: `computeLineMetrics()` gives each line's height, and a binary search over `getLineNumberAt()` finds where each page's first line starts. Pages break between words or after a hyphen. A whole novel paginates in well under a second.
+3. Chapters always start on a new page, so each chapter is paginated on its own. Only the chapter you're reading is paginated before the page appears. The rest are filled in one per frame interval (never during an animation), and until then the tray shows a percentage instead of "Page x of y".
 4. A paragraph that carries over from the previous page doesn't get a second drop cap.
 5. Progress and bookmarks are stored as **character offsets**, not page numbers. After a re-flow the reader opens whichever new page holds their offset, so they never lose their place.
 6. Colours are left out of the pagination key, so a theme cross-fade doesn't re-paginate on every frame.
@@ -281,7 +298,7 @@ Flutter's `PointerSignalResolver` gives a scroll event to the **first** widget t
 <summary><b>🧰 Flutter APIs used</b></summary>
 <br/>
 
-`AnimationController` · `Tween` · `CurvedAnimation` · `Interval` · `AnimatedBuilder` · `Transform` · `Matrix4` · `Hero` · `PageView.builder` · `GestureDetector` · `Listener` · `PointerSignalResolver` · `CallbackShortcuts` · `Focus` · `ChangeNotifier` · `InheritedNotifier` · `ListenableBuilder` · `ThemeExtension` · `SegmentedButton` · `Slider` · `showModalBottomSheet` · `Text.rich` · `TextPainter` · `LayoutBuilder` · `RepaintBoundary.toImageSync` · `CustomPainter` · `ColorScheme.fromSeed` · `shared_preferences`
+`AnimationController` · `Tween` · `CurvedAnimation` · `Interval` · `AnimatedBuilder` · `Transform` · `Matrix4` · `Hero` · `PageView.builder` · `GestureDetector` · `Listener` · `PointerSignalResolver` · `CallbackShortcuts` · `Focus` · `ChangeNotifier` · `InheritedNotifier` · `ListenableBuilder` · `ThemeExtension` · `SegmentedButton` · `Slider` · `showModalBottomSheet` · `Text.rich` · `TextPainter` · `LayoutBuilder` · `RepaintBoundary.toImageSync` · `CustomPainter` · `ui.Paragraph` · `compute` · `file_picker` · `archive` · `xml` · `path_provider` · `ColorScheme.fromSeed` · `shared_preferences`
 
 </details>
 
@@ -370,7 +387,7 @@ Animated_Book/
 - [ ] Two-page spread in landscape and on desktop
 - [x] Page-curl effect with a shadow along the fold
 - [x] Bookmarks list with jump-to-page
-- [ ] Load real books from files (`.txt` / `.epub`)
+- [x] Load real books from files (`.txt` / `.epub`)
 - [ ] Highlights and margin notes
 
 ## 🤝 Contributing

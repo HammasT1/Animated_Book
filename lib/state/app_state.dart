@@ -255,6 +255,16 @@ class AppState extends ChangeNotifier {
   /// Where the reader is in a book, or null if it was never opened.
   ReadingPosition? positionOf(String bookId) => _positions[bookId];
 
+  /// Forgets the position and bookmarks of a book taken off the shelf.
+  void forgetBook(String bookId) {
+    _positions.remove(bookId);
+    _bookmarks.remove(bookId);
+    _prefs
+      ..remove('$_kPositionPrefix$bookId')
+      ..remove('$_kBookmarksPrefix$bookId');
+    notifyListeners();
+  }
+
   void setPosition(String bookId, ReadingPosition position) {
     if (_positions[bookId] == position) return;
     _positions[bookId] = position;

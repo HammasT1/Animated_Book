@@ -1,4 +1,8 @@
+import 'dart:convert';
+
 import 'package:animated_book/data/library.dart';
+import 'package:animated_book/data/library_store.dart';
+import 'package:animated_book/widgets/book_cover.dart';
 import 'package:animated_book/main.dart';
 import 'package:animated_book/state/app_state.dart';
 import 'package:animated_book/theme/app_theme.dart';
@@ -279,6 +283,92 @@ void main() {
       expect(curlPainter, findsNothing);
       await tester.pumpAndSettle();
       expect(_pageInfo(tester).$1, 2);
+    });
+  });
+
+  group('Imported books', () {
+    Uint8List txt(String s) => Uint8List.fromList(utf8.encode(s));
+
+    Future<void> showLastBook(WidgetTester tester) async {
+      for (var i = 0; i < kLibrary.length; i++) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+        await tester.pumpAndSettle();
+      }
+    }
+
+    testWidgets('appear on the shelf, open, and can be removed', (
+      tester,
+    ) async {
+      final state = await _freshState();
+      final library = LibraryStore.inMemory();
+      final (book, _) = await library.importFile(
+        'a_short_tale.txt',
+        txt('Once upon a time.\n\nThe end.'),
+      );
+      await tester.pumpWidget(AnimatedBookApp(state: state, library: library));
+      await showLastBook(tester);
+
+      // No cover in a .txt file, so a cover is generated with the title.
+      expect(find.byType(GeneratedCover), findsWidgets);
+      expect(find.text('a short tale'), findsWidgets);
+      expect(find.text('Remove from library'), findsOneWidget);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+      expect(_pageInfo(tester), (1, 1));
+      expect(state.positionOf(book.id), isNotNull);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      // Below the shelf; scroll it into view first.
+      await tester.ensureVisible(find.text('Remove from library'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Remove from library'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Remove'));
+      await tester.pumpAndSettle();
+
+      expect(library.books, kLibrary);
+      expect(state.positionOf(book.id), isNull);
+      expect(find.text('Removed "a short tale"'), findsOneWidget);
+    });
+
+    testWidgets('a long book shows page numbers once paginated', (
+      tester,
+    ) async {
+      final library = LibraryStore.inMemory();
+      final chapter = List.filled(
+        60,
+        'A long paragraph of prose that goes on for a while, much like the '
+        'chapters of a real novel tend to do when the author is in the mood.',
+      ).join('\n\n');
+      final file = [
+        for (var i = 1; i <= 12; i++) 'CHAPTER $i\n\n$chapter',
+      ].join('\n\n');
+      await library.importFile('long.txt', txt(file));
+      expect(library.books.last.text.length, greaterThan(40000));
+
+      await tester.pumpWidget(
+        AnimatedBookApp(state: await _freshState(), library: library),
+      );
+      await showLastBook(tester);
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+      // Only the first chapter is paginated straight away; until the rest
+      // are, the reader shows how far through the book it is.
+      expect(find.textContaining(_pageLabel), findsNothing);
+      expect(find.textContaining(RegExp(r'^\d+%$')), findsOneWidget);
+
+      // The remaining chapters are paginated a frame interval at a time.
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pumpAndSettle();
+      final (page, total) = _pageInfo(tester);
+      expect(page, 1);
+      expect(total, greaterThan(12)); // at least a page per chapter
+
+      await tester.tap(find.byTooltip('Next page'));
+      await tester.pumpAndSettle();
+      expect(_pageInfo(tester), (2, total));
     });
   });
 
